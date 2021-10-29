@@ -1,2 +1,5 @@
 /extractedframes
 */__pycache__
+Pipfile
+Pipfile.lock
+figures
