@@ -1,4 +1,3 @@
-import time
 from skimage import filters, util, color
 from matplotlib import pyplot
 from skimage.feature import blob_log
@@ -7,6 +6,7 @@ from skimage.transform import rescale
 from skimage.segmentation import flood_fill
 from math import sqrt
 import numpy as np
+import time
 
 start = time.time()
 
