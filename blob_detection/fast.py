@@ -17,8 +17,8 @@ import math
 from pathlib import Path
 import os
 
-for image_path in Path("./extractedframes/Small Fish (9)").iterdir():
-
+for image_path in Path("./extractedframesscoring").iterdir():
+	print(image_path.stem)
 	fig, axes = pyplot.subplots(2, 3, figsize=(15, 10))
 	t1 = time.time()
 
@@ -104,12 +104,12 @@ for image_path in Path("./extractedframes/Small Fish (9)").iterdir():
 	axes[1, 2].set_title("Blobs")
 	axes[1, 2].imshow(gray, cmap="gray")
 
-	# pyplot.show()
-	results_dir = Path.cwd().joinpath("results")
-	if not os.path.isdir(results_dir.absolute()):
-		results_dir.mkdir(parents=True, exist_ok=True)
-	pyplot.savefig(f"./results/{image_path.stem}.png")
+	pyplot.show()
+	# results_dir = Path.cwd().joinpath("results")
+	# if not os.path.isdir(results_dir.absolute()):
+	# 	results_dir.mkdir(parents=True, exist_ok=True)
+	# pyplot.savefig(f"./results/{image_path.stem}.png")
 
-	del fig
-	pyplot.clf()
-	pyplot.close()
+	# del fig
+	# pyplot.clf()
+	# pyplot.close()

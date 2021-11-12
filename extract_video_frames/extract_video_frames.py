@@ -69,15 +69,21 @@ def main():
         vid_nums_processed.add(vid_num)
 
         for time, event in vids_to_check[vid_num]:
-          frames_dir_name = f"extractedframes/{event}"
+          frames_dir_name = f"extractedframes2/{event}"
           newdir = Path.cwd().joinpath(frames_dir_name)
           newdir.mkdir(parents=True, exist_ok=True)
           
-          try:
-            extract_frame(vid_file, time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{time}.png"))
-            num_frames_created += 1
-          except Exception as e:
-            print(e)
+          num_frames_to_extract = 10
+          spf = (1/30)
+          adjusted_time = time - spf*num_frames_to_extract/2
+          for _ in range(num_frames_to_extract):
+            print(adjusted_time)
+            try:
+              extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
+              num_frames_created += 1
+            except Exception as e:
+              print(e)
+            adjusted_time += spf
 
     # This may be less than the number of frames selected, because the video
     # that it tries to get frames from may not exist.
