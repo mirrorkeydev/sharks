@@ -1,3 +1,4 @@
+import matplotlib
 from scipy.ndimage import morphology
 from skimage import filters, util, color
 from matplotlib import pyplot, patches
@@ -5,41 +6,30 @@ from skimage import morphology
 from skimage.transform import rescale
 from skimage.segmentation import flood_fill
 from skimage.measure import label, regionprops
-from matplotlib.widgets import Button
 import numpy as np
 import time
 import math
+import os
+import json
 from pathlib import Path
 
-class Answer():
-  def __init__(self):
-    self.value = None
-  def event(self, event):
-    self.value = 1
-  def noise(self, event):
-    self.value = 0
-
 training_set = []
-fig, axes = pyplot.subplot_mosaic([
-  ['top', 'top', 'top'],
-  ['top', 'top', 'top'],
-  ['p1', 'p2', 'p3'],
-  ['p4', 'p5', '.']
-], figsize=(15, 13))
-axes['top'].set_title("Image")
-axes['p1'].set_title("Local Thresholding")
-axes['p2'].set_title("Edge blobs removed")
-axes['p3'].set_title(f"Small objects removed")
-axes['p4'].set_title("Noisy objects removed")
-axes['p5'].set_title("Blobs")
-event_button_axis = pyplot.axes([0.7, 0.05, 0.1, 0.075])
-noise_button_axis = pyplot.axes([0.81, 0.05, 0.1, 0.075])
-event_button = Button(event_button_axis, 'Event')
-noise_button = Button(noise_button_axis, "Noise")
-fig.canvas.manager.window.wm_geometry("+%d+%d" % (0, 0))
+matplotlib.use('Agg')
+pyplot.ioff()
 
-
-for image_path in Path("./extractedframesscoring").iterdir():
+for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
+  fig, axes = pyplot.subplot_mosaic([
+    ['top', 'top', 'top'],
+    ['top', 'top', 'top'],
+    ['p1', 'p2', 'p3'],
+    ['p4', 'p5', '.']
+  ], figsize=(15, 13))
+  axes['top'].set_title("Image")
+  axes['p1'].set_title("Local Thresholding")
+  axes['p2'].set_title("Edge blobs removed")
+  axes['p3'].set_title(f"Small objects removed")
+  axes['p4'].set_title("Noisy objects removed")
+  axes['p5'].set_title("Blobs")
   start = time.time()
   # Greyscale image
   try:
@@ -89,7 +79,8 @@ for image_path in Path("./extractedframesscoring").iterdir():
   # Find blobs
   labels, num_blobs = label(small_removed_2, return_num=True)
   regions = regionprops(labels, rescaled_original)
-  for props in regions:
+  for blob_num, props in enumerate(regions):
+    count += 1
     # get box dimentions
     y, x = props.centroid
     y0, x0, y1, x1 = props.bbox
@@ -125,26 +116,26 @@ for image_path in Path("./extractedframesscoring").iterdir():
       props.solidity, # ratio of pixels in the region to pixels of the convex hull image.
     ]
 
-    a = Answer()
-    event_button.on_clicked(a.event)
-    noise_button.on_clicked(a.noise)
-    pyplot.show(block=False)
-    while a.value is None:
-      pyplot.pause(0.1)
-
     # training_set.append(({k: props[k] for k in [*props]}, a.value))
-    training_set.append((features, a.value))
+    results_dir = Path.cwd().joinpath("trainingnoise")
+    if not os.path.isdir(results_dir.absolute()):
+      results_dir.mkdir(parents=True, exist_ok=True)
+    pyplot.savefig(f"./trainingnoise/{image_path.stem}blob{blob_num}.png")
+    print(f"./trainingnoise/{image_path.stem}blob{blob_num}.png")
+    training_set.append((str(image_path.absolute()), blob_num, features))
 
     box.remove()
-    box_shadow = patches.Rectangle((x0, y0), w, h, linewidth=1, edgecolor="#666", facecolor="none")
-    axes['p5'].add_patch(box_shadow)
+    # box_shadow = patches.Rectangle((x0, y0), w, h, linewidth=1, edgecolor="#666", facecolor="none")
+    # axes['p5'].add_patch(box_shadow)
     pyplot.draw()
 
-    print(training_set[-1])
-
   axes['p5'].clear()
-
-pyplot.close(fig)
+  pyplot.close('all')
 
 with open("out.txt", "w") as f:
-  f.write(str(training_set))
+  try:
+    f.write(json.dumps(training_set))
+  except Exception as e:
+    print(e)
+    print("error json encoding, writing plaintext")
+    f.write(str(training_set))
