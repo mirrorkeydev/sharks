@@ -1,7 +1,8 @@
 import json
 from pathlib import Path
 import matplotlib.pyplot as plt
-data = json.loads(Path("./feature_extraction/training_data_with_labels.json").read_text())
+data = json.loads(Path("./feature_extraction/data.json").read_text())
+print(f"{len(data)} training points")
 
 fig, axes = plt.subplot_mosaic([
   ['1', '2', '3', '4'],
@@ -9,45 +10,33 @@ fig, axes = plt.subplot_mosaic([
   ['9', '10', '11', '12'],
   ['13', '14', '15', '.']
 ], figsize=(15, 13))
-axes['1'].set_title("Blob x coord")
-axes['2'].set_title("Blob y coord")
-axes['3'].set_title("Blob width")
-axes['4'].set_title("Blob height")
-axes['5'].set_title("Blob bounding box area")
-axes['6'].set_title("Blob Euler number")
-axes['7'].set_title("Blob extent")
-axes['8'].set_title("Blob orientation")
-axes['9'].set_title("Blob perimeter")
-axes['10'].set_title("Blob number of pixels")
-axes['11'].set_title("Blob max intensity")
-axes['12'].set_title("Blob mean intensity")
-axes['13'].set_title("Blob min intensity")
-axes['14'].set_title("Blob solidity")
+
+i = 0
+for key, _ in data[0]["features"].items():
+  i += 1
+  axes[str(i)].hist([x["features"][key] for x in data], 10)
+  axes[str(i)].set_title(key)
 axes['15'].set_title("Label")
-
-print(f"{len(data)} training points")
-for i in range(15):
-  axes[str(i+1)].hist([x[i] for x in data], 10)
-
+axes['15'].hist([x["label"] for x in data], 10)
 
 # fig.savefig("test.png")
 plt.show()
 
 print("example data point:")
 print("""
-coordinate x (possible values 0-960): {}
-coordinate y (possible values 0-540): {}
-width of blob: {}
-height of blob: {}
-blob bounding box area : {}
-euler_number (number of connected components subtracted by number of holes): {}
-extent (ratio of pixels in the region to pixels in the total bounding box): {}
-orientation (angle between the 0th axis (rows) and the major axis of the ellipse): {}
-perimeter of blob: {}
-number of pixels in the blob: {}
-value with the max intensity in the region (RGB each 0-1): {}
-value with the mean intensity in the region (RGB each 0-1): {}
-value with the min intensity in the region (RGB each 0-1): {}
-solidity (ratio of pixels in the region to pixels of the convex hull image): {}
-event (1) or noise (0): {}
-""".format(*data[258]))
+coordinate x (possible values 0-960): {features[blob_x_coord]}
+coordinate y (possible values 0-540): {features[blob_y_coord]}
+width of blob: {features[blob_width]}
+height of blob: {features[blob_height]}
+blob bounding box area : {features[blob_bbox]}
+euler_number (number of connected components subtracted by number of holes): {features[blob_euler_num]}
+extent (ratio of pixels in the region to pixels in the total bounding box): {features[blob_extent]}
+orientation (angle between the 0th axis (rows) and the major axis of the ellipse): {features[blob_orientation]}
+perimeter of blob: {features[blob_perimeter]}
+number of pixels in the blob: {features[blob_num_pixels]}
+value with the max intensity in the region (RGB each 0-1): {features[blob_max_intensity]}
+value with the mean intensity in the region (RGB each 0-1): {features[blob_mean_intensity]}
+value with the min intensity in the region (RGB each 0-1): {features[blob_min_intensity]}
+solidity (ratio of pixels in the region to pixels of the convex hull image): {features[blob_solidity]}
+event (1) or noise (0): {label}
+""".format(**data[258]))
