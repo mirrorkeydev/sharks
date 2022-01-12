@@ -25,6 +25,9 @@ for counter, blob in enumerate(old_data):
     print(e)
     continue
 
+  # DO NOT EDIT between this opening comment and the closing warning comment.
+  # If you change how blobs are generated, then the data.json (which
+  # assumes a static number/order of blobs per image) will become invalid.
   scale = 0.5
   rescaled_original = rescale(image, scale, anti_aliasing=False, multichannel=True)
   gray  = color.rgb2gray(rescaled_original)
@@ -61,7 +64,9 @@ for counter, blob in enumerate(old_data):
   labels, num_blobs = label(small_removed_2, return_num=True)
   regions = regionprops(labels, rescaled_original)
   props = regions[blob["blob_num"]]
-  
+
+  # DO NOT EDIT between this closing comment and the opening warning comment.
+
   # Calculate box dimensions
   y, x = props.centroid
   y0, x0, y1, x1 = props.bbox
