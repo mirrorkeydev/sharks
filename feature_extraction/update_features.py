@@ -1,5 +1,3 @@
-from re import S
-import matplotlib
 from scipy.ndimage import morphology
 from skimage import filters, util, color
 from matplotlib import pyplot, patches
@@ -8,10 +6,6 @@ from skimage.transform import rescale
 from skimage.segmentation import flood_fill
 from skimage.measure import label, regionprops
 import numpy as np
-import time
-import math
-import os
-import sys
 import json
 from pathlib import Path
 
@@ -20,7 +14,7 @@ new_data = []
 
 for counter, blob in enumerate(old_data):
   try:
-    image = pyplot.imread(blob["filename"], False)
+    image = pyplot.imread(blob["filename"])
   except Exception as e:
     print(e)
     continue
@@ -57,11 +51,11 @@ for counter, blob in enumerate(old_data):
   area = 512*scale # lower gives more false positives
   small_removed = morphology.remove_small_objects(no_edge_blobs.astype(bool), min_size=area, connectivity=1)
 
-  dilated = morphology.binary_erosion(small_removed, selem=np.full((3,3), 1))
+  dilated = morphology.binary_erosion(small_removed, footprint=np.full((3,3), 1))
   small_removed_2 = morphology.remove_small_objects(dilated.astype(bool), min_size=area, connectivity=1)
 
   # Find blobs
-  labels, num_blobs = label(small_removed_2, return_num=True)
+  labels, num_blobs = label(small_removed_2, return_num=True) # type:ignore
   regions = regionprops(labels, rescaled_original)
   props = regions[blob["blob_num"]]
 
@@ -83,9 +77,15 @@ for counter, blob in enumerate(old_data):
     "blob_orientation": props.orientation,
     "blob_perimeter": props.perimeter,
     "blob_num_pixels": props.area.item(),
-    "blob_max_intensity": props.max_intensity.tolist(),
-    "blob_mean_intensity": props.mean_intensity.tolist(),
-    "blob_min_intensity": props.min_intensity.tolist(),
+    "blob_max_intensity_r": props.max_intensity.tolist()[0],
+    "blob_max_intensity_g": props.max_intensity.tolist()[1],
+    "blob_max_intensity_b": props.max_intensity.tolist()[2],
+    "blob_mean_intensity_r": props.mean_intensity.tolist()[0],
+    "blob_mean_intensity_g": props.mean_intensity.tolist()[1],
+    "blob_mean_intensity_b": props.mean_intensity.tolist()[2],
+    "blob_min_intensity_r": props.min_intensity.tolist()[0],
+    "blob_min_intensity_g": props.min_intensity.tolist()[1],
+    "blob_min_intensity_b": props.min_intensity.tolist()[2],
     "blob_solidity": props.solidity,
     # To add new features to the set, just add them here.
     # All features will be overwritten with new values if
@@ -102,8 +102,18 @@ for counter, blob in enumerate(old_data):
 
   print(counter)
 
-with open("new_data.json", "w") as f:
+with open("data.json", "w") as f:
   try:
     f.write(json.dumps(new_data))
+  except Exception as e:
+    print(e)
+
+features_and_labels = []
+for data in new_data:
+  features_and_labels.append([val for _, val in data["features"].items()] + [data["label"]])
+
+with open("training_data.json", "w") as f:
+  try:
+    f.write(json.dumps(features_and_labels))
   except Exception as e:
     print(e)
