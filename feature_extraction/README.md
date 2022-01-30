@@ -3,13 +3,13 @@
 ## Pipeline:
 
 1. Extract features + blobs with blank labels from images with `extract_features.py`. This generates a `data.json` and a `gameframes` directory.
-2. Play the "labeling game" with `game.py`, passing in the `data.json` and `gameframes` from the last step. This generates a new `data.json` with all labels filled out.
+2. Play the "labeling game" with `game.py`, passing in the `data.json` and `gameframes` from the last step. This generates a new `data.json` with all labels filled out. Before you move onto the next step, commit this `data.json` or save a copy of it in some form, just in case. If you lose this file by overwriting it, it will be costly to replace.
 3. Generate a `training_data.json` (ready to pass to a ML model) by running `update_features.py`.
 4. Train a model. If you determine your blob data needs more features or needs to generate them slightly differently, you can edit the logic in `update_features.py`, and it will overwrite `data.json` and `training_data.json` for you, keeping the label + filename information.
 
 ## Main files:
 - `[name]_data.json`:
-  Used to generate new training data. Per-blob features (with names), including the source image of the blob, the number of the blob in the image, and the label of the blob.
+  Used to generate new training data. Per-blob features (with names), including the source image of the blob, the number of the blob in the image, and the label of the blob (which is potentially unknown (`None`) or skipped due to being unclear (`999`)).
 - `[name]_training_data.json`:
   For feeding into machine learning packages. Per-blob features vectors (without names), the last number in each vector (array) is the label.
 - `update_features.py`:

@@ -23,13 +23,14 @@ import numpy as np
 import json
 from pathlib import Path
 
-# Set this appropriately:
-old_data = json.loads(Path("./feature_extraction/data.json").read_text())
-output_json_name = "new_data.json"
+# Set these appropriately:
+labeled_data = json.loads(Path("./feature_extraction/kelp_classifier_data.json").read_text())
+output_json_path = Path("./feature_extraction/kelp_classifier_data_updated.json")
+output_training_data_path = Path("./feature_extraction/kelp_classifier_training_data.json")
 
-new_data = []
+training_data = []
 
-for counter, blob in enumerate(old_data):
+for counter, blob in enumerate(labeled_data):
   try:
     image = pyplot.imread(blob["filename"])
   except Exception as e:
@@ -108,27 +109,22 @@ for counter, blob in enumerate(old_data):
     # number, and label will be taken from the old data.
     }
 
-  new_data.append({
+  training_data.append({
     "filename": blob["filename"],
     "blob_num": blob["blob_num"],
     "features": features,
     "label": blob["label"],
   })
 
-  print(counter)
-
-with open(output_json_name, "w") as f:
-  try:
-    f.write(json.dumps(new_data))
-  except Exception as e:
-    print(e)
+with open(output_json_path, "w") as f:
+  f.write(json.dumps(training_data))
 
 features_and_labels = []
-for data in new_data:
-  features_and_labels.append([val for _, val in data["features"].items()] + [data["label"]])
+for data in training_data:
+  # ML model doesn't know what do with None or Skip (999) labels,
+  # so exclude these from training data generation.
+  if data["label"] != None and data["label"] != 999:
+    features_and_labels.append([val for _, val in data["features"].items()] + [data["label"]])
 
-with open("training_data.json", "w") as f:
-  try:
-    f.write(json.dumps(features_and_labels))
-  except Exception as e:
-    print(e)
+with open(output_training_data_path, "w") as f:
+  f.write(json.dumps(features_and_labels))

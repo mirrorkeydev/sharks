@@ -20,8 +20,8 @@ import json
 import sys
 
 # Set these appropriately:
-input_data_path = Path("./feature_extraction/kelp_data.json")
-output_data_path = Path("./feature_extraction/new_kelp_data.json")
+input_data_path = Path("./feature_extraction/kelp_classifier_unlabeled_data.json")
+output_data_path = Path("./feature_extraction/kelp_classifier_data.json")
 game_frames_path = Path("./kelpgameframes")
 
 def output_data(data):
@@ -33,7 +33,7 @@ label_lookup = {
   "Noise (0)": 0,
   "Fish (1)": 1,
   "Kelp (2)": 2,
-  "Skip": None,
+  "Skip": 999,
 }
 
 feature_data = json.loads(input_data_path.read_text())

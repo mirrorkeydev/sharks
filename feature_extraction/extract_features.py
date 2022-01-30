@@ -26,9 +26,9 @@ import json
 from pathlib import Path
 
 # Set these appropriately:
-input_images_path = Path("./extractedframeskelp/Contact With Kelp! (J)")
+input_images_path = Path("./extractedframeskelp/")
 game_frames_dir_name = "kelpgameframes" # Will auto-create if it doesn't exist
-output_json_path = Path("./feature_extraction/kelp_data.json")
+output_json_path = Path("./feature_extraction/kelp_classifier_unlabeled_data.json")
 
 matplotlib.use('Agg')
 pyplot.ioff()
