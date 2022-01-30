@@ -1,5 +1,5 @@
-# This script updates features and generates a minimal feature vector for
-# ML model consumption.
+# This script updates features for a labeled json dataset, keeping the 
+# label and other metadata intact while modifying
 #
 # Before you run this script:
 # 1. Set the variables at the top of the script to point to appropriate
@@ -8,13 +8,10 @@
 #    and "BLOB LOGIC END" comments matches the same logic with which
 #    the old_data was generated with. If it doesn't match, then labels
 #    will be arbitrarily assigned to blobs and the data becomes garbage.
-#
-# TODO: split feature vector and feature updating functionality into
-# separate scripts?
 
 from scipy.ndimage import morphology
 from skimage import filters, util, color
-from matplotlib import pyplot, patches
+from matplotlib import pyplot
 from skimage import morphology 
 from skimage.transform import rescale
 from skimage.segmentation import flood_fill
@@ -26,7 +23,6 @@ from pathlib import Path
 # Set these appropriately:
 labeled_data = json.loads(Path("./feature_extraction/kelp_classifier_data.json").read_text())
 output_json_path = Path("./feature_extraction/kelp_classifier_data_updated.json")
-output_training_data_path = Path("./feature_extraction/kelp_classifier_training_data.json")
 
 training_data = []
 
@@ -118,13 +114,3 @@ for counter, blob in enumerate(labeled_data):
 
 with open(output_json_path, "w") as f:
   f.write(json.dumps(training_data))
-
-features_and_labels = []
-for data in training_data:
-  # ML model doesn't know what do with None or Skip (999) labels,
-  # so exclude these from training data generation.
-  if data["label"] != None and data["label"] != 999:
-    features_and_labels.append([val for _, val in data["features"].items()] + [data["label"]])
-
-with open(output_training_data_path, "w") as f:
-  f.write(json.dumps(features_and_labels))
