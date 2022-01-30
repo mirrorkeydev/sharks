@@ -1,3 +1,17 @@
+# This script updates features and generates a minimal feature vector for
+# ML model consumption.
+#
+# Before you run this script:
+# 1. Set the variables at the top of the script to point to appropriate
+#    locations.
+# 2. Ensure that the blob detection logic between the "BLOB LOGIC START"
+#    and "BLOB LOGIC END" comments matches the same logic with which
+#    the old_data was generated with. If it doesn't match, then labels
+#    will be arbitrarily assigned to blobs and the data becomes garbage.
+#
+# TODO: split feature vector and feature updating functionality into
+# separate scripts?
+
 from scipy.ndimage import morphology
 from skimage import filters, util, color
 from matplotlib import pyplot, patches
@@ -9,7 +23,10 @@ import numpy as np
 import json
 from pathlib import Path
 
+# Set this appropriately:
 old_data = json.loads(Path("./feature_extraction/data.json").read_text())
+output_json_name = "new_data.json"
+
 new_data = []
 
 for counter, blob in enumerate(old_data):
@@ -19,11 +36,9 @@ for counter, blob in enumerate(old_data):
     print(e)
     continue
 
-  # DO NOT EDIT between this opening comment and the closing warning comment.
-  # If you change how blobs are generated, then the data.json (which
-  # assumes a static number/order of blobs per image) will become invalid.
+  # BLOB LOGIC START ----------------------------------------------------------
   scale = 0.5
-  rescaled_original = rescale(image, scale, anti_aliasing=False, multichannel=True)
+  rescaled_original = rescale(image, scale, anti_aliasing=False, channel_axis=2)
   gray  = color.rgb2gray(rescaled_original)
 
   # local thresholding
@@ -59,7 +74,7 @@ for counter, blob in enumerate(old_data):
   regions = regionprops(labels, rescaled_original)
   props = regions[blob["blob_num"]]
 
-  # DO NOT EDIT between this closing comment and the opening warning comment.
+  # BLOB LOGIC END ----------------------------------------------------------
 
   # Calculate box dimensions
   y, x = props.centroid
@@ -102,7 +117,7 @@ for counter, blob in enumerate(old_data):
 
   print(counter)
 
-with open("data.json", "w") as f:
+with open(output_json_name, "w") as f:
   try:
     f.write(json.dumps(new_data))
   except Exception as e:

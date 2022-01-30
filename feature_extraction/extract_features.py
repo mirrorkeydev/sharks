@@ -1,3 +1,15 @@
+# This script extracts features for blobs with unset (None/null) labels,
+# and creates "game frames" to make the labeling of these blobs faster.
+# The game frames and resultant json are fed into game.py.
+#
+# Before you run this script:
+# 1. Set the variables at the top of this script to the location of the
+#    images you would like to blob detect + feature extract.
+# 2. (Optional) Change the blob detection logic. Warning: if you have
+#    already labeled data using different blob detection logic, then changing
+#    this logic will make the previous data incompatible with the new data.
+#    This is ok if you are going to use the new data in a separate classifier.
+
 import matplotlib
 from scipy.ndimage import morphology
 from skimage import filters, util, color
@@ -13,17 +25,22 @@ import os
 import json
 from pathlib import Path
 
-training_set = []
+# Set these appropriately:
+input_images_path = Path("./extractedframeskelp/Contact With Kelp! (J)")
+game_frames_dir_name = "kelpgameframes" # Will auto-create if it doesn't exist
+output_json_path = Path("./feature_extraction/kelp_data.json")
+
 matplotlib.use('Agg')
 pyplot.ioff()
+data = []
 
-for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
+for image_path in input_images_path.iterdir():
   fig, axes = pyplot.subplot_mosaic([
     ['top', 'top', 'top'],
     ['top', 'top', 'top'],
     ['p1', 'p2', 'p3'],
     ['p4', 'p5', '.']
-  ], figsize=(15, 13))
+  ], figsize=(15, 13)) # type:ignore
   axes['top'].set_title("Image")
   axes['p1'].set_title("Local Thresholding")
   axes['p2'].set_title("Edge blobs removed")
@@ -33,12 +50,12 @@ for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
   start = time.time()
   # Greyscale image
   try:
-    image = pyplot.imread(image_path.absolute(), False)
+    image = pyplot.imread(image_path.absolute(), False) # type:ignore
   except Exception as e:
     print(e)
     continue
   scale = 0.5
-  rescaled_original = rescale(image, scale, anti_aliasing=False, multichannel=True)
+  rescaled_original = rescale(image, scale, anti_aliasing=False, channel_axis=2)
   gray  = color.rgb2gray(rescaled_original)
 
   # local thresholding
@@ -66,7 +83,7 @@ for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
   area = 512*scale # lower gives more false positives
   small_removed = morphology.remove_small_objects(no_edge_blobs.astype(bool), min_size=area, connectivity=1)
 
-  dilated = morphology.binary_erosion(small_removed, selem=np.full((3,3), 1))
+  dilated = morphology.binary_erosion(small_removed, footprint=np.full((3,3), 1))
   small_removed_2 = morphology.remove_small_objects(dilated.astype(bool), min_size=area, connectivity=1)
 
   axes['top'].imshow(rescaled_original)
@@ -77,10 +94,9 @@ for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
   axes['p5'].imshow(gray, cmap="gray")
 
   # Find blobs
-  labels, num_blobs = label(small_removed_2, return_num=True)
+  labels, num_blobs = label(small_removed_2, return_num=True) # type:ignore
   regions = regionprops(labels, rescaled_original)
   for blob_num, props in enumerate(regions):
-    count += 1
     # get box dimentions
     y, x = props.centroid
     y0, x0, y1, x1 = props.bbox
@@ -101,41 +117,53 @@ for image_path in Path("./extractedframes2/Small Fish (9)").iterdir():
     box = patches.Rectangle((x0, y0), w, h, linewidth=1, edgecolor="b", facecolor="none")
     axes['p5'].add_patch(box)
 
-    features = [
-      x, y, # coordinate location in image
-      w, h, # height, width of blob
-      props.bbox_area, # bounding box area
-      props.euler_number, # number of connected components subtracted by number of holes
-      props.extent, # ratio of pixels in the region to pixels in the total bounding box
-      props.orientation, # angle between the 0th axis (rows) and the major axis of the ellipse 
-      props.perimeter, # perimeter of object
-      props.area, # number of pixels of the region.
-      props.max_intensity, # value with the max intensity in the region (RGB 0-1)
-      props.mean_intensity, # value with the mean intensity in the region (RGB 0-1)
-      props.min_intensity, # value with the min intensity in the region (RGB 0-1)
-      props.solidity, # ratio of pixels in the region to pixels of the convex hull image.
-    ]
+    features = {
+      "blob_x_coord": x,
+      "blob_y_coord": y,
+      "blob_width": w,
+      "blob_height": h,
+      "blob_bbox": props.bbox_area,
+      "blob_euler_num": props.euler_number.item(),
+      "blob_extent": props.extent,
+      "blob_orientation": props.orientation,
+      "blob_perimeter": props.perimeter,
+      "blob_num_pixels": props.area.item(),
+      "blob_max_intensity_r": props.max_intensity.tolist()[0],
+      "blob_max_intensity_g": props.max_intensity.tolist()[1],
+      "blob_max_intensity_b": props.max_intensity.tolist()[2],
+      "blob_mean_intensity_r": props.mean_intensity.tolist()[0],
+      "blob_mean_intensity_g": props.mean_intensity.tolist()[1],
+      "blob_mean_intensity_b": props.mean_intensity.tolist()[2],
+      "blob_min_intensity_r": props.min_intensity.tolist()[0],
+      "blob_min_intensity_g": props.min_intensity.tolist()[1],
+      "blob_min_intensity_b": props.min_intensity.tolist()[2],
+      "blob_solidity": props.solidity,
+    }
 
-    # training_set.append(({k: props[k] for k in [*props]}, a.value))
-    results_dir = Path.cwd().joinpath("trainingnoise")
+    data.append({
+      "filename": str(image_path.absolute()),
+      "blob_num": blob_num,
+      "features": features,
+      "label": None,
+    })
+
+    # Put "game frames" into directory (and create directory if it doesn't exist)
+    results_dir = Path.cwd().joinpath(game_frames_dir_name)
     if not os.path.isdir(results_dir.absolute()):
       results_dir.mkdir(parents=True, exist_ok=True)
-    pyplot.savefig(f"./trainingnoise/{image_path.stem}blob{blob_num}.png")
-    print(f"./trainingnoise/{image_path.stem}blob{blob_num}.png")
-    training_set.append((str(image_path.absolute()), blob_num, features))
+    pyplot.savefig(f"./{game_frames_dir_name}/{image_path.stem}blob{blob_num}.png")
+    print(f"./{game_frames_dir_name}/{image_path.stem}blob{blob_num}.png")
 
     box.remove()
-    # box_shadow = patches.Rectangle((x0, y0), w, h, linewidth=1, edgecolor="#666", facecolor="none")
-    # axes['p5'].add_patch(box_shadow)
     pyplot.draw()
 
   axes['p5'].clear()
   pyplot.close('all')
 
-with open("out.txt", "w") as f:
+with open(output_json_path, "w") as f:
   try:
-    f.write(json.dumps(training_set))
+    f.write(json.dumps(data))
   except Exception as e:
     print(e)
     print("error json encoding, writing plaintext")
-    f.write(str(training_set))
+    f.write(str(data))

@@ -7,6 +7,8 @@ import ffmpeg
 import re
 from pathlib import Path
 from collections import defaultdict
+
+from pytest import skip
 from deployments_data import deployments
 
 def extract_frame(vid_path: Path, time: float, out_path: Path) -> None:
@@ -23,17 +25,24 @@ def extract_frame(vid_path: Path, time: float, out_path: Path) -> None:
     .input(str(vid_path), ss=time)
     .output(str(out_path), vframes=1)
     .global_args('-loglevel', 'error')
+    .global_args('-n') # Never overwrite file if it already exists
     .run()
   )
 
 def main():
   for deployment in deployments:
+    print("\n-----------------------------------------------------------")
     print("Processing videos from {location}, deployment {deployment}".format(**deployment))
     vids_to_check = defaultdict(list)
+
+    skipped_files = []
 
     # Mark videos to extract frames from
     num_frames_found = 0
     for csv_file in deployment["csv_dir"].iterdir():
+      if str(csv_file.suffix).lower() != ".xlsx":
+        skipped_files.append(csv_file.name)
+        continue
       match = re.match(deployment["regex_pattern"]["csv"], csv_file.stem)
       if match == None:
         print(f"Warning: Unable to extract ID from csv '{csv_file.name}'. File name did not match the expected format. Skipping.")
@@ -44,19 +53,29 @@ def main():
       sheet = wb_obj.active
 
       for row in sheet.iter_rows(min_row=2, values_only=True):
-        time, event = row[0], row[3]
-        if not isinstance(time, float) or not isinstance(event, str):
+        time, event, pov = row[0], row[3], row[4]
+        if not isinstance(time, float) or (not isinstance(event, str) and not isinstance(pov, str)):
           continue
-        if event != None:
-          vids_to_check[vid_num].append((time, event))
+        if (event is not None and "kelp" in event.lower()) or (pov is not None and "kelp" in pov.lower()):
+          vids_to_check[vid_num].append((time, event if event is not None and "kelp" in event.lower() else pov))
           num_frames_found += 1
 
     print(f"Found {num_frames_found} frames to select from videos")
+    if len(skipped_files) > 0:
+      print(f"Skipped non-excel files: {skipped_files}.")
 
     # Extract frames
     num_frames_created = 0
     vid_nums_processed = set()
+    skipped_video_files = []
+
+    # found_stopping_point = False
+
     for vid_file in deployment["vid_dir"].iterdir():
+      
+      if str(vid_file.suffix).lower() != ".mov":
+        skipped_video_files.append(vid_file.name)
+        continue
       match = re.match(deployment["regex_pattern"]["vid"], vid_file.stem)
       if match == None:
         print(f"Warning: Name of video file '{vid_file.name}' did not match the expected format. Skipping.")
@@ -69,27 +88,37 @@ def main():
         vid_nums_processed.add(vid_num)
 
         for time, event in vids_to_check[vid_num]:
-          frames_dir_name = f"extractedframes2/{event}"
+          frames_dir_name = f"extractedframeskelp/{event}"
           newdir = Path.cwd().joinpath(frames_dir_name)
           newdir.mkdir(parents=True, exist_ok=True)
           
-          num_frames_to_extract = 10
+          num_frames_to_extract = 5
           spf = (1/30)
           adjusted_time = time - spf*num_frames_to_extract/2
-          for _ in range(num_frames_to_extract):
-            print(adjusted_time)
-            try:
-              extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
-              num_frames_created += 1
-            except Exception as e:
-              print(e)
-            adjusted_time += spf
 
+          # TODO: remove temp 
+          # if vid_num == "844" and time > 2630:
+          #   found_stopping_point = True
+
+          if True: #found_stopping_point:
+            for _ in range(num_frames_to_extract):
+              print(adjusted_time)
+              try:
+                extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
+                num_frames_created += 1
+              except Exception as e:
+                print(e)
+              adjusted_time += spf
+
+    if len(skipped_video_files) > 0:
+      print(f"Skipped non-video files: {skipped_video_files}.")
     # This may be less than the number of frames selected, because the video
     # that it tries to get frames from may not exist.
     # TODO: I would expect it to throw an error when the video doesn't exist,
     # but it's not currently doing so. Need to investigate why that is.
     print(f"Exported {num_frames_created} frames") 
+
+
 
   print("\n - Completed successfully -")
 
