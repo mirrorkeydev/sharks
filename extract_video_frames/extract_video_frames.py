@@ -69,8 +69,6 @@ def main():
     vid_nums_processed = set()
     skipped_video_files = []
 
-    # found_stopping_point = False
-
     for vid_file in deployment["vid_dir"].iterdir():
       
       if str(vid_file.suffix).lower() != ".mov":
@@ -96,19 +94,14 @@ def main():
           spf = (1/30)
           adjusted_time = time - spf*num_frames_to_extract/2
 
-          # TODO: remove temp 
-          # if vid_num == "844" and time > 2630:
-          #   found_stopping_point = True
-
-          if True: #found_stopping_point:
-            for _ in range(num_frames_to_extract):
-              print(adjusted_time)
-              try:
-                extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
-                num_frames_created += 1
-              except Exception as e:
-                print(e)
-              adjusted_time += spf
+          for _ in range(num_frames_to_extract):
+            print(adjusted_time)
+            try:
+              extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
+              num_frames_created += 1
+            except Exception as e:
+              print(e)
+            adjusted_time += spf
 
     if len(skipped_video_files) > 0:
       print(f"Skipped non-video files: {skipped_video_files}.")
