@@ -116,18 +116,21 @@ for image_path in input_images_path.iterdir():
     # draw box
     box = patches.Rectangle((x0, y0), w, h, linewidth=1, edgecolor="b", facecolor="none")
     axes['p5'].add_patch(box)
+    
+    image_y_size, image_x_size = gray.shape
+    image_total_area = image_x_size * image_y_size
 
     features = {
-      "blob_x_coord": x,
-      "blob_y_coord": y,
-      "blob_width": w,
-      "blob_height": h,
-      "blob_bbox": props.bbox_area,
+      "blob_x_coord": x / image_x_size,
+      "blob_y_coord": y / image_y_size,
+      "blob_width": w / image_x_size,
+      "blob_height": h / image_y_size,
+      "blob_bbox": props.bbox_area / image_total_area,
       "blob_euler_num": props.euler_number.item(),
       "blob_extent": props.extent,
       "blob_orientation": props.orientation,
-      "blob_perimeter": props.perimeter,
-      "blob_num_pixels": props.area.item(),
+      "blob_perimeter": props.perimeter, # perimeter is very difficult to normalize
+      "blob_num_pixels": props.area.item() / image_total_area,
       "blob_max_intensity_r": props.max_intensity.tolist()[0],
       "blob_max_intensity_g": props.max_intensity.tolist()[1],
       "blob_max_intensity_b": props.max_intensity.tolist()[2],
