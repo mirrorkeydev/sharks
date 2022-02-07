@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 
 # Set these appropriately:
-labeled_data = json.loads(Path("./feature_extraction/kelp_classifier_data.json").read_text())
-output_training_data_path = Path("./feature_extraction/kelp_classifier_training_data.json")
+labeled_data = json.loads(Path("./feature_extraction/fish_classifier_data.json").read_text())
+output_training_data_path = Path("./feature_extraction/fish_classifier_training_data.json")
 
 features_and_labels = []
 for data in labeled_data:

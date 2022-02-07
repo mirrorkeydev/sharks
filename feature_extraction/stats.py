@@ -24,11 +24,11 @@ plt.show()
 
 print("example data point:")
 print("""
-coordinate x (possible values 0-960): {features[blob_x_coord]}
-coordinate y (possible values 0-540): {features[blob_y_coord]}
-width of blob: {features[blob_width]}
-height of blob: {features[blob_height]}
-blob bounding box area : {features[blob_bbox]}
+relative coordinate x (possible values 0-1): {features[blob_x_coord]}
+relative coordinate y (possible values 0-1): {features[blob_y_coord]}
+relative width of blob: {features[blob_width]}
+relative height of blob: {features[blob_height]}
+relative blob bounding box area : {features[blob_bbox]}
 euler_number (number of connected components subtracted by number of holes): {features[blob_euler_num]}
 extent (ratio of pixels in the region to pixels in the total bounding box): {features[blob_extent]}
 orientation (angle between the 0th axis (rows) and the major axis of the ellipse): {features[blob_orientation]}
