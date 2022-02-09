@@ -1,6 +1,10 @@
-# This script runs through all known cvs/video pairs and extracts frames
-# where any event occurs, outputting them into /extractedframes/{event_name} directories
+# This script runs through all known cvs/video pairs and extracts frames where any event
+# occurs, outputting them into /{extracted_frames_directory_name}/{event_name} directories
 # in your current working directory.
+#
+# Before you run this script:
+# 1. Change `dir_root` in `deployments_data.py` to point at the correct root
+#    on the machine you're running the script on.
 
 import openpyxl
 import ffmpeg
@@ -8,8 +12,9 @@ import re
 from pathlib import Path
 from collections import defaultdict
 
-from pytest import skip
 from deployments_data import deployments
+
+extracted_frames_directory_name = "rawframes" # This directory will be auto-created.
 
 def extract_frame(vid_path: Path, time: float, out_path: Path) -> None:
   '''
@@ -56,6 +61,8 @@ def main():
         time, event, pov = row[0], row[3], row[4]
         if not isinstance(time, float) or (not isinstance(event, str) and not isinstance(pov, str)):
           continue
+
+        # This logic determines which frames get extracted:
         if (event is not None and "kelp" in event.lower()) or (pov is not None and "kelp" in pov.lower()):
           vids_to_check[vid_num].append((time, event if event is not None and "kelp" in event.lower() else pov))
           num_frames_found += 1
@@ -86,7 +93,7 @@ def main():
         vid_nums_processed.add(vid_num)
 
         for time, event in vids_to_check[vid_num]:
-          frames_dir_name = f"extractedframeskelp/{event}"
+          frames_dir_name = f"{extracted_frames_directory_name}/{event}"
           newdir = Path.cwd().joinpath(frames_dir_name)
           newdir.mkdir(parents=True, exist_ok=True)
           
@@ -110,8 +117,6 @@ def main():
     # TODO: I would expect it to throw an error when the video doesn't exist,
     # but it's not currently doing so. Need to investigate why that is.
     print(f"Exported {num_frames_created} frames") 
-
-
 
   print("\n - Completed successfully -")
 

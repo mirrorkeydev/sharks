@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 # Set these appropriately:
-input_images_path = Path("./sample_images/") # The images you want to extract blobs from
+input_images_path = Path("./rawframes/") # The images you want to extract blobs from
 game_frames_dir_name = "gameframes" # Will auto-create if it doesn't exist
 output_json_path = Path("./feature_extraction/classifier_unlabeled_data.json")
 
