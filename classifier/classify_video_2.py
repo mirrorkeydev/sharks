@@ -23,14 +23,14 @@ import matplotlib
 from matplotlib           import pyplot, patches
 
 # not sure what this does, but it prevents pyplot from crashing after 368 figures created
-#matplotlib.use("agg")
+matplotlib.use("agg")
 
 # parameters
 video_file  = "../videos/yellow tail.mp4"
 model_file  = "./trained_model.json"
 
 upsidedown  = True  # does the footage need to be flipped 180 degrees?
-frame_step  = 10    # only looks at every nth frame
+frame_step  = 5     # only looks at every nth frame
 scale       = 0.5   # image scale multiplier
 border_size = 25    # number of pixels
 
@@ -144,6 +144,9 @@ for frame, image in enumerate(video):
             pyplot.text(x0-1, y0-5, t, color=c)
             pyplot.text(x0-1, y0-20, str(confidence)+"%", color=c)
 
+        # add frame number
+        pyplot.text(2, 20, int(frame/frame_step), color="w")
+
         # build .png
         axes[0].set_title("Binary")
         axes[0].imshow(final, cmap="gray")
@@ -153,8 +156,8 @@ for frame, image in enumerate(video):
         for a in axes:
             a.get_xaxis().set_visible(False)
             a.get_yaxis().set_visible(False)
-        fig.tight_layout()
-        pyplot.savefig(filename)  # create .png
+        #fig.tight_layout()
+        pyplot.savefig(filename, bbox_inches="tight")  # create .png
         pyplot.close("all")       # close the plot so matplotlib doesn't yell at me
 
 # build gif from .pngs
