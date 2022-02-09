@@ -37,6 +37,7 @@ label_lookup = {
   "Sunspot (4)": 4,
   "Rock (5)": 5,
   "Bubble (6)": 6,
+  "Camera Edge (7)": 7,
   "Skip/Unclear": 999,
 }
 
