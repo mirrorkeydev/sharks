@@ -9,21 +9,15 @@
 #    the old_data was generated with. If it doesn't match, then labels
 #    will be arbitrarily assigned to blobs and the data becomes garbage.
 
-from scipy.ndimage import morphology
-from skimage import filters, util, color
+from blob_extraction import process_image, extract_blobs, get_blob_features
 from matplotlib import pyplot
-from skimage import morphology 
-from skimage.transform import rescale
-from skimage.segmentation import flood_fill
-from skimage.measure import label, regionprops
-import numpy as np
 import json
 from pathlib import Path
 from alive_progress import alive_bar
 
 # Set these appropriately:
-labeled_data = json.loads(Path("./feature_extraction/fish_classifier_data.json").read_text())
-output_json_path = Path("./feature_extraction/fish_classifier_data_updated.json")
+labeled_data = json.loads(Path("./feature_extraction/classifier_data.json").read_text())
+output_json_path = Path("./feature_extraction/classifier_data_updated.json")
 
 training_data = []
 
@@ -38,89 +32,18 @@ with alive_bar(data_length) as bar:
       print(e)
       continue
 
-    # BLOB LOGIC START ----------------------------------------------------------
-    scale = 0.5
-    rescaled_original = rescale(image, scale, anti_aliasing=False, channel_axis=2)
-    gray  = color.rgb2gray(rescaled_original)
+    processed_images = process_image(image)
+    blobs = extract_blobs(processed_images.final, processed_images.rescaled)
 
-    # local thresholding
-    # This is the most time-consuming step.
-    threshold   = filters.threshold_local(gray, 255*scale, offset=0.005)
-    binary      = gray > threshold
-    binary      = util.invert(binary)
+    for blob_num, props in enumerate(blobs):
+      features, _ = get_blob_features(props, processed_images.grayscaled)
 
-    # Remove blobs touching borders
-    no_edge_blobs = np.copy(binary.astype(int)*255)
-    def flood(value, location):
-      if value > 0:
-        flood_fill(no_edge_blobs, location, 0, tolerance=70, in_place=True)
-    x_max = no_edge_blobs.shape[1] - 1
-    for i, row in enumerate(no_edge_blobs):
-      if i == 0 or i == no_edge_blobs.shape[0] - 1:
-        for j, cell in enumerate(row):
-          flood(cell, (i, j))
-      elif row[0] > 0:
-        flood(row[0], (i, 0))
-      elif row[x_max] > 0:
-        flood(row[x_max], (i, x_max))
-
-    # Remove small objects (faster than area_opening as it works on binary images)
-    area = 512*scale # lower gives more false positives
-    small_removed = morphology.remove_small_objects(no_edge_blobs.astype(bool), min_size=area, connectivity=1)
-
-    dilated = morphology.binary_erosion(small_removed, footprint=np.full((3,3), 1))
-    small_removed_2 = morphology.remove_small_objects(dilated.astype(bool), min_size=area, connectivity=1)
-
-    # Find blobs
-    labels, num_blobs = label(small_removed_2, return_num=True) # type:ignore
-    regions = regionprops(labels, rescaled_original)
-    props = regions[blob["blob_num"]]
-
-    # BLOB LOGIC END ----------------------------------------------------------
-
-    # Calculate box dimensions
-    y, x = props.centroid
-    y0, x0, y1, x1 = props.bbox
-    w, h = x1 - x0, y1 - y0
-
-    image_y_size, image_x_size = gray.shape
-    image_total_area = image_x_size * image_y_size
-
-    features = {
-      "blob_x_coord": x / image_x_size,
-      "blob_y_coord": y / image_y_size,
-      "blob_width": w / image_x_size,
-      "blob_height": h / image_y_size,
-      "blob_bbox": props.bbox_area / image_total_area,
-      "blob_euler_num": props.euler_number.item(),
-      "blob_extent": props.extent,
-      "blob_orientation": props.orientation,
-      "blob_perimeter": props.perimeter, # perimeter is very difficult to normalize
-      "blob_num_pixels": props.area.item() / image_total_area,
-      "blob_max_intensity_r": props.max_intensity.tolist()[0],
-      "blob_max_intensity_g": props.max_intensity.tolist()[1],
-      "blob_max_intensity_b": props.max_intensity.tolist()[2],
-      "blob_mean_intensity_r": props.mean_intensity.tolist()[0],
-      "blob_mean_intensity_g": props.mean_intensity.tolist()[1],
-      "blob_mean_intensity_b": props.mean_intensity.tolist()[2],
-      "blob_min_intensity_r": props.min_intensity.tolist()[0],
-      "blob_min_intensity_g": props.min_intensity.tolist()[1],
-      "blob_min_intensity_b": props.min_intensity.tolist()[2],
-      "blob_solidity": props.solidity,
-      # To add new features to the set, just add them here.
-      # All features will be overwritten with new values if
-      # you tweak how they're generated. The filename, blob
-      # number, and label will be taken from the old data.
-      # Some ideas:
-      # http://www.cyto.purdue.edu/cdroms/micro2/content/education/wirth10.pdf
-      }
-
-    training_data.append({
-      "filename": blob["filename"],
-      "blob_num": blob["blob_num"],
-      "features": features,
-      "label": blob["label"],
-    })
+      training_data.append({
+        "filename": blob["filename"],
+        "blob_num": blob["blob_num"],
+        "features": features,
+        "label": blob["label"],
+      })
   
     bar()
 

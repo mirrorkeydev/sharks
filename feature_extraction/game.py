@@ -20,9 +20,9 @@ import json
 import sys
 
 # Set these appropriately:
-input_data_path = Path("./feature_extraction/kelp_classifier_unlabeled_data.json")
-output_data_path = Path("./feature_extraction/kelp_classifier_data.json")
-game_frames_path = Path("./kelpgameframes")
+input_data_path = Path("./feature_extraction/classifier_unlabeled_data.json")
+output_data_path = Path("./feature_extraction/classifier_data.json")
+game_frames_path = Path("./gameframes")
 
 def output_data(data):
   with open(output_data_path, "w") as f:
@@ -33,7 +33,11 @@ label_lookup = {
   "Noise (0)": 0,
   "Fish (1)": 1,
   "Kelp (2)": 2,
-  "Skip": 999,
+  "Shark (3)": 3,
+  "Sunspot (4)": 4,
+  "Rock (5)": 5,
+  "Bubble (6)": 6,
+  "Skip/Unclear": 999,
 }
 
 feature_data = json.loads(input_data_path.read_text())
@@ -49,7 +53,7 @@ for i, data in enumerate(feature_data):
 
   layout = [
     [sg.Image(game_img_path)],
-    [sg.Button('Noise (0)'), sg.Button('Fish (1)'), sg.Button('Kelp (2)'), sg.Button('Skip')]
+    [sg.Button(x) for x in label_lookup.keys()]
   ]
 
   sg.OneLineProgressMeter("progressbar", i, len(feature_data), 'progress')
@@ -63,7 +67,6 @@ for i, data in enumerate(feature_data):
     break
 
   feature_data[i] = {**data, "label": label_lookup[event]}
-  print("Labeled: ", label_lookup[event])
   window.close()
 
 output_data(feature_data)
