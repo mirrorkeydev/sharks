@@ -23,5 +23,3 @@ Important: At the top of each file is a comment explaining which files need to e
   Module that contains all of the blob extraction logic.
 - `deployments_data.py`:
   Module that contains metadata linking CSVs to videos, as well as extra information e.g. whether the video is flipped or not.
-- `stats.py`:
-  Generates neat histograms for `data.json`.
