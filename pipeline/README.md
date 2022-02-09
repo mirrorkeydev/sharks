@@ -10,13 +10,7 @@ Important: At the top of each file is a comment explaining which files need to e
 2. `2_extract_features.py`: Extract features + blobs with blank labels from images. This generates an unlabeled `data.json` and a `gameframes` directory.
 3. `3_game.py`: Play the "labeling game", passing in the unlabeled `data.json` and `gameframes` from the last step. This generates a new labeled `data.json`. Before you move onto the next step, commit this `data.json` or save a copy of it in some form, just in case. If you lose this file by overwriting it (for example, if you run `update_features.py` later and the blob generation isn't correct), it will be costly to replace.
 4. `4_generate_training_data.py`: Generate a `training_data.json` (ready to pass to a ML model). Train a model with this `training_data.json`.
-5. `5_update_features.py`: If you determine your blob data needs more features or needs to generate the features slightly differently, you can edit the logic in `blob_extraction.py` and then run `5_update_features.py`, and it will generate a new `data.json` for you using the old one, keeping the label + filename information. If you need this data in training data form, run step 3 again on the new file.
-
-## Main files:
-- `[name]_classifier_data.json`:
-  Used to generate new training data. Per-blob features (with names), including the source image of the blob, the number of the blob in the image, and the label of the blob (which is potentially unknown (`None`) or skipped due to being unclear (`999`)).
-- `[name]_classifier_training_data.json`:
-  For feeding into machine learning packages. Per-blob features vectors (without names), the last number in each vector (array) is the label.
+5. `5_update_features.py`: If you determine your blob data needs more features or needs to generate the features slightly differently, you can edit the logic in `blob_extraction.py` and then run `5_update_features.py`, and it will generate a new `data.json` for you using the old one, keeping the label + filename information. If you need this data in training data form, run step 4 again on the new file.
 
 ## Helper files:
 - `blob_extraction.py`:
