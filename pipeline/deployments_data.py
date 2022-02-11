@@ -12,7 +12,7 @@ dir_root = Path(r'D:/sharks-box/Box Sync')
 regex_a = { "csv": r'[Vv]ideo\s?0*(\d+)', "vid": r'\D*0+(\d+)' }
 regex_b = { "csv": r'(\S+)\sJR', "vid": r'(\S+)' }
 regex_c = { "csv": r'(\S+)', "vid": r'(\S+)' }
-regex_d = { "csv": r'.+ (\d+)', "vid": r'FILE0(\d+)' }
+regex_d = { "csv": r".+ 0?(\d+)", "vid": r"FI(?:LE)?0(\d+)"}
 
 deployments = [
   {

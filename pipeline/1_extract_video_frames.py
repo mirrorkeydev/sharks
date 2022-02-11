@@ -11,12 +11,12 @@ import ffmpeg
 import re
 from pathlib import Path
 from collections import defaultdict
-
+import random
 from deployments_data import deployments
 
 extracted_frames_directory_name = "rawframes" # This directory will be auto-created.
 
-def extract_frame(vid_path: Path, time: float, out_path: Path) -> None:
+def extract_frame(vid_path: Path, time: float, out_path: Path, num_frames: int, needs_flipped: bool) -> None:
   '''
   Extracts a frame from the input vid_path at time `time` and outputs the file
   at the specified output path. Note that ffmpeg cannot create new directories,
@@ -25,16 +25,19 @@ def extract_frame(vid_path: Path, time: float, out_path: Path) -> None:
   if not isinstance(time, float):
     print(f"extract_frame expected time to be a float, but got {type(time)}.")
     return
-  (
-    ffmpeg
-    .input(str(vid_path), ss=time)
-    .output(str(out_path), vframes=1)
-    .global_args('-loglevel', 'error')
-    .global_args('-n') # Never overwrite file if it already exists
-    .run()
-  )
+
+  stream = ffmpeg.input(str(vid_path), ss=time)
+  if needs_flipped:
+    stream = ffmpeg.vflip(stream)
+  stream = ffmpeg.output(stream, str(out_path), vframes=num_frames)
+  stream = stream.global_args('-loglevel', 'error')
+  stream = stream.global_args('-n') # Never overwrite file if it already exists
+  ffmpeg.run(stream)
 
 def main():
+  skippers = {"kelp": 0, "rock": 0}
+  total_distribution = {}
+  total_sum = 0
   for deployment in deployments:
     print("\n-----------------------------------------------------------")
     print("Processing videos from {location}, deployment {deployment}".format(**deployment))
@@ -59,15 +62,34 @@ def main():
 
       for row in sheet.iter_rows(min_row=2, values_only=True):
         time, event, pov = row[0], row[3], row[4]
-        if not isinstance(time, float) or (not isinstance(event, str) and not isinstance(pov, str)):
+        if not isinstance(time, float):
           continue
+        
+        include = False
+        event_name = "NoEvent"
+        things_of_interest = ["kelp", "fish", "seal", "rock", "shark (g)"]
 
-        # This logic determines which frames get extracted:
-        if (event is not None and "kelp" in event.lower()) or (pov is not None and "kelp" in pov.lower()):
-          vids_to_check[vid_num].append((time, event if event is not None and "kelp" in event.lower() else pov))
+        if event is None and pov is None:
+          # Ususally we skip these frames where nothing is happening, but 
+          # we do want some samples of conditions where nothing is seen.
+          include = random.randint(0, 5000) == 1 # 1 in 5,000 chance
+    
+        if pov is not None:
+          include = any([word in pov.lower() for word in things_of_interest])
+          event_name = pov
+
+        if event is not None:
+          include = any([word in event.lower() for word in things_of_interest])
+          event_name = event
+
+        if "rock" in event_name.lower():
+          event_name = "Reef or Rock" # the original name has a slash which is bad for filenames
+
+        if include:
+          vids_to_check[vid_num].append((time, event_name))
           num_frames_found += 1
 
-    print(f"Found {num_frames_found} frames to select from videos")
+    print(f"Found {num_frames_found} events to select from videos")
     if len(skipped_files) > 0:
       print(f"Skipped non-excel files: {skipped_files}.")
 
@@ -93,31 +115,61 @@ def main():
         vid_nums_processed.add(vid_num)
 
         for time, event in vids_to_check[vid_num]:
-          frames_dir_name = f"{extracted_frames_directory_name}/{event}"
+          frames_dir_name = f"{extracted_frames_directory_name}"
           newdir = Path.cwd().joinpath(frames_dir_name)
           newdir.mkdir(parents=True, exist_ok=True)
           
-          num_frames_to_extract = 5
-          spf = (1/30)
+          num_frames_to_extract = 1
+
+          if "kelp" in event.lower():
+            # There's so many of these that we don't want to extract every single one.
+            # This logic only extracts every 1 of 20 kelp occurences.
+            if skippers["kelp"] < 20:
+              skippers["kelp"] += 1
+              continue
+            else:
+              skippers["kelp"] = 0
+
+          if "rock" in event.lower():
+            if skippers["rock"] < 40:
+              skippers["rock"] += 1
+              continue
+            else:
+              skippers["rock"] = 0
+
+          if any([word in event.lower() for word in ["fish"]]):
+            # For these specific events, we want to extract more frames than usual.
+            num_frames_to_extract = 1
+
+          if any([word in event.lower() for word in ["seal", "shark"]]):
+            # For these specific events, we want to extract more frames than usual.
+            num_frames_to_extract = 5
+
+          if event in total_distribution:
+            total_distribution[event] += num_frames_to_extract
+          else:
+            total_distribution[event] = num_frames_to_extract
+
+          spf = (1/30) # seconds per frame
           adjusted_time = time - spf*num_frames_to_extract/2
 
-          for _ in range(num_frames_to_extract):
-            print(adjusted_time)
-            try:
-              extract_frame(vid_file, adjusted_time, newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{'%.3f'%(adjusted_time)}.png"))
-              num_frames_created += 1
-            except Exception as e:
-              print(e)
-            adjusted_time += spf
+          try:
+            extract_frame(vid_file,
+            adjusted_time,
+            newdir.joinpath(f"{deployment['location']}-{deployment['deployment']}-{vid_num}-{event}-{'%.3f'%(adjusted_time)}-%03d.png"),
+            num_frames_to_extract,
+            deployment['upsidedown'])
+            num_frames_created += num_frames_to_extract
+          except Exception as e:
+            print(e)
 
     if len(skipped_video_files) > 0:
       print(f"Skipped non-video files: {skipped_video_files}.")
-    # This may be less than the number of frames selected, because the video
-    # that it tries to get frames from may not exist.
-    # TODO: I would expect it to throw an error when the video doesn't exist,
-    # but it's not currently doing so. Need to investigate why that is.
     print(f"Exported {num_frames_created} frames") 
+    total_sum += num_frames_created
 
+  print("sum = ", total_sum)
+  print(total_distribution)
   print("\n - Completed successfully -")
 
 if __name__ == "__main__":

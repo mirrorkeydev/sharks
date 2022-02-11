@@ -31,13 +31,15 @@ def output_data(data):
 
 label_lookup = {
   "Noise (0)": 0,
-  "Fish (1)": 1,
-  "Kelp (2)": 2,
-  "Shark (3)": 3,
-  "Sunspot (4)": 4,
-  "Rock (5)": 5,
-  "Bubble (6)": 6,
-  "Camera Edge (7)": 7,
+  "Shark Nose (1)": 1,
+  "Fish (2)": 2,
+  "Kelp (3)": 3,
+  "Seal (4)": 4,
+  "Other Shark (5)": 5,
+  "Sunspot (6)": 6,
+  "Rock (7)": 7,
+  "Bubble (8)": 8,
+  "Camera Edge (9)": 9,
   "Skip/Unclear": 999,
 }
 
@@ -59,7 +61,7 @@ for i, data in enumerate(feature_data):
 
   sg.OneLineProgressMeter("progressbar", i, len(feature_data), 'progress')
 
-  window = sg.Window('Game time', layout, location=(0,0))
+  window = sg.Window(img_stem, layout, location=(0,0))
   while True:
     event, _ = window.read() # type:ignore
     if event == sg.WIN_CLOSED:
