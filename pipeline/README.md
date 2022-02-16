@@ -1,6 +1,4 @@
-# Feature Extraction
-
-## Pipeline:
+# Training Pipeline:
 
 Run the scripts listed in the following steps in order to go from a set of csv/video pairs to a set of training data that can be passed to a model.
 

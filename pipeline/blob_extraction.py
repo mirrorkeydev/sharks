@@ -35,9 +35,8 @@ class BlobDrawingAttributes:
   w: float
   h: float
 
-def process_image(image) :
+def process_image(image, upsidedown = False) :
   scale = 0.5
-  upsidedown = False
   border_size = 25
 
   # resize and convert image to grayscale
