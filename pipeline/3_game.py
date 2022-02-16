@@ -18,10 +18,11 @@ import PySimpleGUI as sg
 from pathlib import Path
 import json
 import sys
+import random
 
 # Set these appropriately:
-input_data_path = Path("./feature_extraction/classifier_unlabeled_data.json")
-output_data_path = Path("./feature_extraction/classifier_data.json")
+input_data_path = Path("./pipeline/classifier_unlabeled_data.json")
+output_data_path = Path("./pipeline/classifier_data.json")
 game_frames_path = Path("./gameframes")
 
 def output_data(data):

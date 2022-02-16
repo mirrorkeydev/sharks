@@ -8,3 +8,5 @@ trainingnoise*
 kelpsamples
 *gameframes*
 rawframes*
+frames*
+pipeline/classifier*.json

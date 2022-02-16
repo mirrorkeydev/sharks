@@ -5,10 +5,6 @@
 # Before you run this script:
 # 1. Set the variables at the top of this script to the location of the
 #    images you would like to blob detect + feature extract.
-# 2. (Optional) Change the blob detection logic. Warning: if you have
-#    already labeled data using different blob detection logic, then changing
-#    this logic will make the previous data incompatible with the new data.
-#    This is ok if you are going to use the new data in a separate classifier.
 
 import matplotlib
 from matplotlib import pyplot, patches
@@ -18,13 +14,17 @@ import json
 from pathlib import Path
 
 # Set these appropriately:
-input_images_path = Path("./rawframes/") # The images you want to extract blobs from
+input_images_path = Path("./frames1/") # The images you want to extract blobs from
 game_frames_dir_name = "gameframes" # Will auto-create if it doesn't exist
-output_json_path = Path("./feature_extraction/classifier_unlabeled_data.json")
+output_json_path = Path("./pipeline/classifier_unlabeled_data.json")
 
 matplotlib.use('Agg')
 pyplot.ioff()
 data = []
+
+# Just testing that the output path is ok
+with open(output_json_path, "w") as f:
+  pass
 
 for image_path in input_images_path.iterdir():
   fig, axes = pyplot.subplot_mosaic([
