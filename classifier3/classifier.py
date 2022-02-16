@@ -11,6 +11,13 @@
 #
 # =============================================== #
 
+# This workaround allows us to import from pipeline/ without
+# having to install it as a package or restructure the project.
+import sys
+from pathlib import Path
+SELF_PATH = Path(__file__)
+sys.path.append(str(SELF_PATH.parent.parent))
+
 from csv     import writer
 from math    import floor
 from pickle  import load
@@ -23,6 +30,7 @@ from skimage.segmentation import flood_fill
 from skimage.util         import crop
 from sklearn.ensemble     import RandomForestClassifier
 from sklearn.neighbors    import _partition_nodes
+from pipeline.blob_extraction import process_image, extract_blobs, get_blob_features
 
 # parameters
 model_file  = "./trained_model.json"
@@ -76,79 +84,23 @@ def main(root, progress_bar, video_file):
 
 ##### IMAGE PROCESSING ###################################################################
 
-            # resize and convert image to grayscale
-            if (upsidedown): image = transform.rotate(image, 180)
-            rescaled  = rescale(image, scale, anti_aliasing=False, multichannel=True)
-            grayscale = color.rgb2gray(rescaled)
-
-            # local thresholding
-            threshold = filters.threshold_local(grayscale, 255 * scale, offset=0.005)
-            binary    = grayscale > threshold
-            binary    = util.invert(binary)
-
-            border_size = 25
-
-            x_min = border_size; x_max = binary.shape[1]
-            y_min = border_size; y_max = binary.shape[0]
-
-            cropped = copy(binary.astype(int)*255)
-
-            # remove horizontal borders
-            for x in range(0, x_max):
-                for y in list(range(0, y_min)) + list(range(y_max - border_size, y_max)):
-                    cropped[y][x] = 0
-
-            # remove vertical borders
-            for y in range(0, y_max):
-                for x in list(range(0, x_min)) + list(range(x_max - border_size, x_max)):
-                    cropped[y][x] = 0
-
-            # remove small objects (faster than area_opening as it works on binary images)
-            area = 512 * scale # lower gives more false positives
-            small_removed = morphology.remove_small_objects(cropped.astype(bool), min_size=area, connectivity=1)
-
-            dilated = morphology.binary_erosion(small_removed, selem=full((3,3), 1))
-            final   = morphology.remove_small_objects(dilated.astype(bool), min_size=area, connectivity=1)
+            processed_images = process_image(image, upsidedown)
 
 ##### CLASSIFIER TIME ####################################################################
 
             # label objects in image
-            labels, num_blobs = label(final, return_num=True)
-
-            # 
+            blobs = extract_blobs(processed_images.final, processed_images.rescaled)
             not_fish_count, fish_count = 0, 0
 
             # get properties of each object
-            regions = regionprops(labels, rescaled)
-            for blob_num, props in enumerate(regions):
+            for blob_num, props in enumerate(blobs):
 
-                # get position and box dimentions
-                y, x           = props.centroid
-                y0, x0, y1, x1 = props.bbox
-                w, h = x1 - x0, y1 - y0
-
-                # build features list
-                features = [
-                    x, y, # coordinate location in image
-                    w, h, # height, width of blob
-                    props.bbox_area, # bounding box area
-                    props.euler_number, # number of connected components subtracted by number of holes
-                    props.extent, # ratio of pixels in the region to pixels in the total bounding box
-                    props.orientation, # angle between the 0th axis (rows) and the major axis of the ellipse 
-                    props.perimeter, # perimeter of object
-                    props.area, # number of pixels of the region.
-                    # value with the max intensity in the region (RGB 0-1)
-                    props.max_intensity[0], props.max_intensity[1], props.max_intensity[2],
-                    # value with the mean intensity in the region (RGB 0-1)
-                    props.mean_intensity[0], props.mean_intensity[1], props.mean_intensity[2],
-                    # value with the min intensity in the region (RGB 0-1)
-                    props.min_intensity[0], props.min_intensity[1], props.min_intensity[2],
-                    props.solidity, # ratio of pixels in the region to pixels of the convex hull image.
-                ]
+                features, _ = get_blob_features(props, processed_images.grayscaled)
+                feature_vector = [val for _, val in features.items()]
 
                 # test model with features
-                confidence = int(rf.predict_proba([features])[0][1] * 100)
-                if rf.predict([features])[0] == 1:
+                confidence = int(rf.predict_proba([feature_vector])[0][1] * 100)
+                if rf.predict([feature_vector])[0] == 1:
                     fish_count += 1
                 else:
                     not_fish_count += 1
