@@ -22,8 +22,8 @@ def open_file(root):
     boolean = True
     if (boolean == True):
         # Hide open file button and label while the program processes a selected file
-        btn_label.grid_forget()
-        open_file_btn.grid_forget()
+        #btn_label.grid_forget()
+        #open_file_btn.grid_forget()
 
         # Set up progress bar
         progress_label = Label(root, text="Loading Video File...")
