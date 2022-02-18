@@ -41,7 +41,7 @@ frame_step  = 6     # only looks at every nth frame
 scale       = 0.5   # image scale multiplier
 border_size = 25    # number of pixels
 
-def main(root, progress_bar, video_file):
+def main(root, progress_bar, video_file, slider):
 
 ##### FILES & THINGS & WHATEVER ##########################################################
 
@@ -69,7 +69,8 @@ def main(root, progress_bar, video_file):
     video = get_reader(video_file, 'ffmpeg')
     num_frames = video.count_frames() # can take a few seconds on larger videos, but nice to know how long it will take
     fps        = video.get_meta_data()['fps']
-
+    
+    # Progress bar for loading the video files
     progress_bar['maximum'] = num_frames
     progress_bar['value'] = 0
     root.update_idletasks()
@@ -99,7 +100,7 @@ def main(root, progress_bar, video_file):
                 feature_vector = [val for _, val in features.items()]
 
                 # test model with features
-                confidence = int(rf.predict_proba([feature_vector])[0][1] * 100)
+                confidence = int(rf.predict_proba([feature_vector])[0][1] * slider.get())
                 if rf.predict([feature_vector])[0] == 1:
                     fish_count += 1
                 else:
@@ -113,3 +114,6 @@ def main(root, progress_bar, video_file):
 
             # update timestamp
             time += (frame_step / floor(fps + 0.5))
+    
+    # Remove Progress bar upon completion
+    progress_bar.forget()
