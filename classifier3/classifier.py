@@ -40,6 +40,7 @@ upsidedown  = True  # does the footage need to be flipped 180 degrees?
 frame_step  = 6     # only looks at every nth frame
 scale       = 0.5   # image scale multiplier
 border_size = 25    # number of pixels
+stop_prog = False   # did the user click the back button?
 
 def main(root, progress_bar, video_file, slider):
 
@@ -77,7 +78,11 @@ def main(root, progress_bar, video_file, slider):
 
     # each every i frames
     for frame, image in enumerate(video):
-
+        # End process if user went back to the main menu
+        if(stop_prog):
+            print("Process Terminated")
+            return
+        # Update the progress bar
         progress_bar['value'] = frame
         root.update()
 
@@ -95,7 +100,10 @@ def main(root, progress_bar, video_file, slider):
 
             # get properties of each object
             for blob_num, props in enumerate(blobs):
-
+                # End process if user went back to the main menu
+                if(stop_prog):
+                    print("Process Terminated")
+                    return
                 features, _ = get_blob_features(props, processed_images.grayscaled)
                 feature_vector = [val for _, val in features.items()]
 
