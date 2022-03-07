@@ -65,7 +65,7 @@ def process_image(image, upsidedown = False) :
           cropped[y][x] = 0
 
   # remove small objects (faster than area_opening as it works on binary images)
-  area = 512 * scale # lower gives more false positives
+  area = int(512 * scale) # lower gives more false positives
   small_removed = morphology.remove_small_objects(cropped.astype(bool), min_size=area, connectivity=1)
 
   dilated = morphology.binary_erosion(small_removed, footprint=np.full((3,3), 1))

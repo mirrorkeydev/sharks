@@ -21,9 +21,12 @@ import sys
 import random
 
 # Set these appropriately:
-input_data_path = Path("./pipeline/classifier_unlabeled_data.json")
-output_data_path = Path("./pipeline/classifier_data.json")
-game_frames_path = Path("./gameframes")
+input_data_path = Path("./pipeline/classifier_data_inprogress_70.json")
+output_data_path = Path("./pipeline/classifier_data_inprogress_100.json")
+game_frames_path = Path("./frames1-gameframes")
+
+if output_data_path.exists() and len(output_data_path.read_text()) > 1:
+  raise Exception("The output file already has things in it. Edit output_data_path to be a new file.")
 
 def output_data(data):
   with open(output_data_path, "w") as f:
