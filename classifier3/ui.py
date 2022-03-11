@@ -5,21 +5,23 @@ from tkinter import filedialog
 from tkinter import ttk
 import time
 import classifier
+from classifier import resource_path
 
 # This is the root window that appears when the program is ran
 root = Tk()
 root.title("SharkGUI")
-root.iconbitmap('shark.ico') #Change icon at top left corner use same root
+root.iconbitmap(resource_path('shark.ico')) #Change icon at top left corner use same root
 root.geometry("750x350")
 
 # Globals
 is_file = False             # Boolean used to check for valid file
 
 enable_images = IntVar()    # Tkinter integer variable
+flip_video    = IntVar()
 
 def open_file(root):
     global stop_program
-    stop_program = False        # Used to terminate processes if the user wants to "go back" while the program is running
+    stop_program = False    # Used to terminate processes if the user wants to "go back" while the program is running
 
     home = "C:/"        # Default directory for file explorer
     video_file = Path(filedialog.askopenfilename(title = "select", initialdir = home))
@@ -43,17 +45,8 @@ def open_file(root):
         done_lbl = Label(root, text = f"Finished labeling frames, output is located in: output.csv")
         done_lbl.place(relx=0, rely=0, anchor=SW)
 
-
 def open_settings():
     window = Toplevel(root)
-
-    # # Enable image output setting
-    check_box = Checkbutton(window, text='Output Images',variable=enable_images, onvalue=1, offvalue=0)
-    check_box.pack()
-
-    # # Confidence Level setting
-    slider = Scale(window, from_=0, to=100, orient=HORIZONTAL)
-    slider.pack()
 
 def reset_screen():
     classifier.stop_prog = True
@@ -66,7 +59,7 @@ def reset_screen():
     quit_btn.place(relx=0.5, rely=0.6, anchor=CENTER)
 
 def begin(root, progress_bar, video_file):
-    classifier.main(root, progress_bar, video_file)
+    classifier.main(root, progress_bar, video_file, enable_images.get(), flip_video.get())
 
 # Initializers
 back_btn = Button(root, text = "<--- Return to Menu", command = reset_screen)
@@ -86,8 +79,20 @@ quit_btn = Button(root, text = "Quit Program", command = root.destroy)
 quit_btn.place(relx=0.5, rely=0.6, anchor=CENTER)
 
 # Application settings
-img = PhotoImage(file = 'SettingsIcon2.png')
+img = PhotoImage(file = resource_path('SettingsIcon2.png'))
 setting_btn = Button(root, image = img, command = open_settings)
 setting_btn.pack(side=TOP, anchor=NE)
+
+# # Enable flip video setting
+check_box = Checkbutton(root, text='Flip Video',variable=flip_video, onvalue=1, offvalue=0)
+check_box.pack()
+
+# # Enable image output setting
+check_box = Checkbutton(root, text='Output Images',variable=enable_images, onvalue=1, offvalue=0)
+check_box.pack()
+
+# # Confidence Level setting
+# slider = Scale(root, from_=0, to=100, orient=HORIZONTAL)
+# slider.pack()
 
 root.mainloop()
