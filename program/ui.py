@@ -127,7 +127,7 @@ class ToolTip:
         x = x + self.widget.winfo_rootx() + 57
         y = y + cy + self.widget.winfo_rooty() +27
         self.tipwindow = tw = Toplevel(self.widget)
-        tw.wm_overrideredirect(1)
+        tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
         label = Label(tw, text=self.text, justify=LEFT,
                       background="#ffffe0", relief=SOLID, borderwidth=1,
@@ -151,7 +151,7 @@ def AddToolTip(widgets, text):
 # configure frame
 options_frame = Frame(root, width=125, height=450, padx=3, pady=3, bg="white")
 options_frame.grid(row=0, rowspan=5, column=0, sticky="nw")
-options_frame.grid_propagate(0)
+options_frame.grid_propagate(False)
 
 # options title
 optlabel= Label(options_frame, text="Options", height=2, bg="white", font=("Helvetica", 11, "bold"))
@@ -181,14 +181,14 @@ Frame(root, width=20, height=450, padx=3, pady=3, bg="white").grid(row=0, rowspa
 # configure frame
 image_frame = Frame(root, width=600, height=350, padx=3, pady=3, bg="lightgray", relief=SUNKEN)
 image_frame.grid(row=1, column=1, sticky="nw")
-image_frame.pack_propagate(0)
+image_frame.pack_propagate(False)
 
 ##### PROGRAM ############################################################################
 
 # configure frame
 program_frame = Frame(root, width=600, height=100, padx=3, pady=3, bg="white")
 program_frame.grid(row=4, rowspan=1, column=1, columnspan=4, sticky="nw")
-program_frame.grid_propagate(0)
+program_frame.grid_propagate(False)
 program_frame.columnconfigure(0, weight=1)
 
 # configure grid
