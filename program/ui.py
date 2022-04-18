@@ -112,6 +112,40 @@ def begin(frame, progress_bar, video_file):
     classifier.stop_prog = False
     classifier.main(image_frame, progress_bar, video_file, enable_images.get(), flip_video.get(), frame_skip.get())
 
+# Modified from: https://stackoverflow.com/a/56749167/11319058
+class ToolTip:
+    def __init__(self, widget):
+        self.widget = widget
+        self.tipwindow = None
+        self.x = self.y = 0
+
+    def showtip(self, text):
+        self.text = text
+        if self.tipwindow or not self.text:
+            return
+        x, y, _, cy = self.widget.bbox("insert")
+        x = x + self.widget.winfo_rootx() + 57
+        y = y + cy + self.widget.winfo_rooty() +27
+        self.tipwindow = tw = Toplevel(self.widget)
+        tw.wm_overrideredirect(1)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = Label(tw, text=self.text, justify=LEFT,
+                      background="#ffffe0", relief=SOLID, borderwidth=1,
+                      font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+def AddToolTip(widgets, text):
+    for widget in widgets:
+        toolTip = ToolTip(widget)
+        widget.bind('<Enter>', lambda event: toolTip.showtip(text))
+        widget.bind('<Leave>', lambda event: toolTip.hidetip())
+
 ##### OPTIONS ############################################################################
 
 # configure frame
@@ -120,16 +154,23 @@ options_frame.grid(row=0, rowspan=5, column=0, sticky="nw")
 options_frame.grid_propagate(0)
 
 # options title
-Label(options_frame, text="O P T I O N S", height=2, bg="white").grid(row=0)
+optlabel= Label(options_frame, text="Options", height=2, bg="white", font=("Helvetica", 11, "bold"))
+optlabel.grid(row=0)
 
 # check boxes
-Checkbutton(options_frame, text="Flip Video",    variable=flip_video,    onvalue=1, offvalue=0, anchor="w", height=1, bg="white").grid(row=1, sticky="w")
-Checkbutton(options_frame, text="Output Images", variable=enable_images, onvalue=1, offvalue=0, anchor="w", height=1, bg="white").grid(row=2, sticky="w")
+opt1 = Checkbutton(options_frame, text="Flip Video",    variable=flip_video,    onvalue=1, offvalue=0, anchor="w", height=1, bg="white")
+opt1.grid(row=1, sticky="w")
+AddToolTip([opt1], "Whether to flip the video vertically (to position the shark at the bottom).")
+opt2 = Checkbutton(options_frame, text="Output Images", variable=enable_images, onvalue=1, offvalue=0, anchor="w", height=1, bg="white")
+opt2.grid(row=2, sticky="w")
+AddToolTip([opt2], "Whether to output images for each frame processed with objects circled.")
 
 # number entry
 e  =  Entry(options_frame, textvariable=frame_skip, width=2, bg="white")
 e.delete(0); e.insert(0, "1"); e.grid(row=3, sticky="w")
-Label(options_frame, text="Frame Skip", height=2, bg="white").grid(row=3)
+el = Label(options_frame, text="Frame Skip", height=2, bg="white")
+el.grid(row=3)
+AddToolTip([e, el], "The ratio of frames to skip. E.g. 6 = Process 1 in every 6 frames.")
 
 # empty frame for white border on right side
 Frame(root, width=600, height=20, padx=3, pady=3, bg="white").grid(row=0, column=1, columnspan=4, sticky="nw")
