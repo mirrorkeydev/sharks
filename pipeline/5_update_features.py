@@ -4,10 +4,6 @@
 # Before you run this script:
 # 1. Set the variables at the top of the script to point to appropriate
 #    locations.
-# 2. Ensure that the blob detection logic between the "BLOB LOGIC START"
-#    and "BLOB LOGIC END" comments matches the same logic with which
-#    the old_data was generated with. If it doesn't match, then labels
-#    will be arbitrarily assigned to blobs and the data becomes garbage.
 
 from blob_extraction import process_image, extract_blobs, get_blob_features
 from matplotlib import pyplot
