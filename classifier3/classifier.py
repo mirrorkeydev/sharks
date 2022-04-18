@@ -33,19 +33,16 @@ from sklearn.ensemble     import RandomForestClassifier
 from sklearn.neighbors    import _partition_nodes
 from blob_extraction      import process_image, extract_blobs, get_blob_features
 from matplotlib           import pyplot, patches, use
+from matplotlib.backends.backend_tkagg           import FigureCanvasTkAgg
 
 # i don't want matplotlib yelling at me for making too many figures
 use("agg")
 
 model_file  = "./trained_model.json"
 
-
 # label titles & colors (used when outputing images)
 label_titles = ["Noise (0)", "Shark Nose (1)", "Fish (2)", "Kelp (3)", "Seal (4)", "Other Shark (5)", "Sunspot (6)", "Rock (7)", "Bubble (8)", "Camera Edge (9)"]
 label_colors = ["white", "lightgray", "blue", "green", "cyan", "teal", "orange", "saddlebrown", "lightcyan", "gray"]
-
-# should be configurable
-frame_step  = 6     # only looks at every nth frame
 
 scale       = 0.5   # image scale multiplier
 border_size = 25    # number of pixels
@@ -57,7 +54,7 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
-def main(root, progress_bar, video_file, enable_images, flip_video):
+def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
 
 ##### FILES & THINGS & WHATEVER ##########################################################
 
@@ -67,6 +64,19 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
     except:
         print("Error: Cannot find/load model, probably because the file", model_file, "does not exist. Try running build_classifier.py.")
         quit()
+
+    # load video
+    try:
+        video = get_reader(video_file, 'ffmpeg')
+    except:
+        print("Error:", video_file, "is not a readable video file.")
+        return
+
+    # skip
+    frame_step = int(skip)
+
+    # video time
+    print("Reading 1 in every", frame_step, "frames, predicting labels for all found objects, and exporting them as a gif.\nMight take a minute.\n")
 
     # create/write to output file
     _, v = os.path.split(video_file)
@@ -86,11 +96,8 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
     if enable_images == 1 and not (os.path.exists(dir_name)):
         os.mkdir(dir_name)
 
-    # video time
-    print("Reading 1 in every", frame_step, "frames, predicting labels for all found objects, and exporting them as a gif.\nMight take a minute.\n")
 
-    # read video
-    video = get_reader(video_file, 'ffmpeg')
+    # capture metadata
     num_frames = video.count_frames() # can take a few seconds on larger videos, but nice to know how long it will take
     metadata   = video.get_meta_data()
     fps        = metadata['fps']
@@ -98,7 +105,7 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
     # Progress bar for loading the video files
     progress_bar['maximum'] = num_frames
     progress_bar['value'] = 0
-    root.update_idletasks()
+    tk_frame.update_idletasks()
 
     # each every i frames
     for frame, image in enumerate(video):
@@ -110,7 +117,7 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
 
         # update the progress bar
         progress_bar['value'] = frame
-        root.update()
+        tk_frame.update()
 
         # list to hold predictions for current frame
         predictions = [0 for i in range(10)]
@@ -141,6 +148,7 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
                 if(stop_prog):
                     print("Process Terminated")
                     return
+
                 features, _ = get_blob_features(props, processed_images.grayscaled)
                 feature_vector = [val for _, val in features.items()]
 
@@ -150,9 +158,9 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
                 pred_score   = max(class_scores)
 
                 # overwrite if could be fish (temp measure)
-                if (class_scores[0][2]) > 0.02:
-                    pred_class = 2
-                    pred_score = class_scores[0][2]
+                # if (class_scores[0][2]) > 0.02:
+                #     pred_class = 2
+                #     pred_score = class_scores[0][2]
 
                 # record scores
                 predictions[pred_class] += 1
@@ -172,26 +180,35 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
                     ax.add_patch(box)
 
                     # add text
-                    pyplot.text(x-1, y-8, title, color=color)
-                    pyplot.text(x-1, y-44, str(int(pred_score*100))+"%", color=color)
+                    #pyplot.text(x-1, y-8, title, color=color)
+                    #pyplot.text(x-1, y-44, str(int(pred_score*100))+"%", color=color)
 
             # build and write png
             if enable_images == 1:
                 if bool(flip_video):
                     image = transform.rotate(image, 180)
-                ax.set_title("Predicted")
                 ax.imshow(image)
                 ax.tick_params(left = False, bottom = False)
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
                 fig.tight_layout()
+
+                ############### send to ui              
+                # creating the Tkinter canvas
+                # containing the Matplotlib figure
+                canvas = FigureCanvasTkAgg(fig, master=tk_frame)  
+                canvas.draw()
+              
+                # placing the canvas on the Tkinter window
+                canvas.get_tk_widget().pack(fill="both")
+
                 pyplot.savefig(filename)  # create png
                 pyplot.close("all")       # close the plot so matplotlib doesn't yell at me
 
 ##### OUTPUT RESULTS #####################################################################
 
             # create and write row to output
-            row = [str(round(time, 1)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
+            row = [str(round(time, 3)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
             if (frame / frame_step == 0): row.extend(["", metadata['duration'], metadata['fps'], metadata['source_size'][0], metadata['source_size'][1]])
             csv_writer.writerow(row)
 
@@ -200,3 +217,6 @@ def main(root, progress_bar, video_file, enable_images, flip_video):
 
     # Remove Progress bar upon completion
     progress_bar.forget()
+
+
+
