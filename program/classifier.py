@@ -31,7 +31,7 @@ from skimage.segmentation import flood_fill
 from skimage.util         import crop
 from sklearn.ensemble     import RandomForestClassifier
 from sklearn.neighbors    import _partition_nodes
-from blob_extraction      import process_image, extract_blobs, get_blob_features
+from pipeline.blob_extraction      import process_image, extract_blobs, get_blob_features
 from matplotlib           import pyplot, patches, use
 from matplotlib.backends.backend_tkagg           import FigureCanvasTkAgg
 
@@ -217,6 +217,3 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
 
     # Remove Progress bar upon completion
     progress_bar.forget()
-
-
-

@@ -18,14 +18,15 @@ k = 10
 ratio = 0.3
 
 # Training Data
-training_file = 'training.json'
-trained_file = 'trained.json'
+training_file = './pipeline/data/classifier_training_data.json'
+trained_file = './pipeline/classifier_trained.json'
 
 # Test Data
 feature_titles = ["X Position", "Y Position", "Bounding Box Width", "Bounding Box Height", "Bounding Box Area", "Connectivity", "Object Area / Bounding Box Area", "Orientation", "Object Perimeter", "Object Area", "Max Intensity (R)", "Max Intensity (G)", "Max Intensity (B)", "Mean Intensity (R)", "Mean Intensity (G)", "Mean Intensity (B)", "Min Intensity (R)", "Min Intensity (G)", "Min Intensity (B)", "Solidity"]
 
 # Load json data
 data = json.loads(Path(training_file).read_text())  # Use the training data for now
+print(f"Training on {len(data)} points")
 
 data_array = np.array(data)         # Convert to Array
 data_points = len(data)             # Capture data points as each bracket
@@ -48,14 +49,21 @@ p = rf.predict(x_test)
 
 # Confusion Matrix and Classifier Report
 cm = confusion_matrix(y_test, p)
-print("Confusion Matrix: \n\n", cm)
+print("Confusion Matrix: \n\n")
+for row in cm:
+  print(",".join([str(i) for i in row]))
 print("Classification Report: \n\n", classification_report(y_test, p))
 
 # Train model on all data
 rf.fit(features, labels)
 
+# perform cross validation
+print("Performing", k, "fold cross validation.")
+scores = cross_val_score(rf, features, labels, scoring = 'accuracy', cv = KFold(n_splits = k, random_state = 1, shuffle = True))
+print("Cross validation accuracy: ", np.mean(scores), "\n")
+
 # Create Figure Feature hierarchy
-feature_hierarchy = permutation_importance(rf, x_test, y_test).importances_mean
+feature_hierarchy = permutation_importance(rf, x_test, y_test).importances_mean #type:ignore
 
 # Bar Chart
 fig, ax = plt.subplots()
