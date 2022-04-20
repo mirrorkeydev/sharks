@@ -10,7 +10,9 @@ from pathlib import Path
 # Set these appropriately:
 labeled_data = [
     json.loads(Path("./pipeline/data/blake_classifier_complete_data.json").read_text()),
+    json.loads(Path("./pipeline/data/blake_classifier_complete_data_2.json").read_text()),
     json.loads(Path("./pipeline/data/melanie_classifier_complete_data.json").read_text()),
+    json.loads(Path("./pipeline/data/scott_classifier_complete_data.json").read_text()),
   ]
 output_training_data_path = Path("./pipeline/data/classifier_training_data.json")
 
