@@ -18,7 +18,7 @@ k = 10
 ratio = 0.3
 
 # Training Data
-training_file = './pipeline/data/classifier_training_data.json'
+training_file = './pipeline/data/complete_training_data.json'
 trained_file = './pipeline/classifier_trained.json'
 
 # Test Data
@@ -56,6 +56,9 @@ print("Classification Report: \n\n", classification_report(y_test, p))
 
 # Train model on all data
 rf.fit(features, labels)
+
+# export model
+pickle.dump(rf, open(trained_file, "wb"))
 
 # perform cross validation
 print("Performing", k, "fold cross validation.")
