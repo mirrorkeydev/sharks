@@ -8,7 +8,7 @@ a = Analysis(
     ['ui.py'],
     pathex=[],
     binaries=[],
-    datas=[('classifier_trained_model.json', '.'), ('shark.ico', '.'), ('SettingsIcon2.png', '.')],
+    datas=[('trained_model.json', '.'), ('shark.ico', '.'), ('SettingsIcon2.png', '.')],
     hiddenimports=['skimage.filters.edges', 'skimage.filters.thresholding', 'sklearn.utils._typedefs'],
     hookspath=[],
     hooksconfig={},
