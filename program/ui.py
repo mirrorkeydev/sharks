@@ -33,9 +33,10 @@ is_file = False
 stop_program = False
 
 # define variables to pass to program and define as integers
-enable_images = IntVar()
-flip_video    = IntVar()
-frame_skip    = IntVar()
+enable_images  = IntVar()
+flip_video     = IntVar()
+frame_skip     = IntVar()
+fish_threshold = IntVar()
 
 # open the video file and run classifier.py on it
 def open_file(root):
@@ -48,13 +49,8 @@ def open_file(root):
     is_file = True
     if (is_file):
 
-        # hide 'open' buttons while program running
-        open_file_button.grid_forget()
-        open_folder_button.grid_forget()
-
-        # palce progress widgets
-        progress_bar.grid(row=1)
-        back_button.grid(row=2)
+        # place 'program running' widgets
+        setup_screen()
 
         # start the video processing
         begin(image_frame, progress_bar, video_file)
@@ -78,13 +74,8 @@ def open_dir(root):
         is_file = True
         if (is_file):
 
-            # hide 'open' buttons while program running
-            open_file_button.grid_forget()
-            open_folder_button.grid_forget()
-
-            # palce progress widgets
-            progress_bar.grid(row=1)
-            back_button.grid(row=2)
+            # place 'program running' widgets
+            setup_screen()
 
             # start the video processing
             begin(image_frame, progress_bar, video_file)
@@ -96,23 +87,40 @@ def open_dir(root):
 def open_settings():
     window = Toplevel(root)
 
+def setup_screen():
+
+    # hide 'open' buttons while program running
+    open_file_button.grid_forget()
+    open_folder_button.grid_forget()
+
+    # palce progress widgets
+    info_label.grid(row=1)
+    progress_bar.grid(row=2)
+    back_button.grid(row=3)
+    legend_label.grid(row=3, column=2)
+
 def reset_screen():
     
     classifier.stop_prog = True
 
     # remove progress widgets
-    back_button.grid_forget()
+    info_label.grid_forget()
     progress_bar.grid_forget()
+    back_button.grid_forget()
+    legend_label.grid_forget()
 
     # replace default buttons
     open_file_button.grid(row=1)
-    open_folder_button.grid(row=2)
+    open_folder_button.grid(row=3)
 
 def begin(frame, progress_bar, video_file):
-    classifier.stop_prog = False
-    classifier.main(image_frame, progress_bar, video_file, enable_images.get(), flip_video.get(), frame_skip.get())
 
-# Modified from: https://stackoverflow.com/a/56749167/11319058
+    wipe_image()
+
+    classifier.stop_prog = False
+    classifier.main(image_frame, info_label, progress_bar, video_file, enable_images.get(), flip_video.get(), int(frame_skip.get()), int(fish_threshold.get()))
+
+# hover tooltips (modified from: https://stackoverflow.com/a/56749167/11319058)
 class ToolTip:
     def __init__(self, widget):
         self.widget = widget
@@ -160,19 +168,26 @@ optlabel.grid(row=0)
 # check boxes
 opt1 = Checkbutton(options_frame, text="Flip Video",    variable=flip_video,    onvalue=1, offvalue=0, anchor="w", height=1, bg="white")
 opt1.grid(row=1, sticky="w")
-AddToolTip([opt1], "Whether to flip the video vertically (to position the shark at the bottom).")
+AddToolTip([opt1], "Whether to flip the video vertically (shark should always be positioned at the bottom of the frame).")
 opt2 = Checkbutton(options_frame, text="Output Images", variable=enable_images, onvalue=1, offvalue=0, anchor="w", height=1, bg="white")
 opt2.grid(row=2, sticky="w")
-AddToolTip([opt2], "Whether to output images for each frame processed with objects circled.")
+AddToolTip([opt2], "Whether to output images for each frame to a seperate folder.")
 
-# number entry
-e  =  Entry(options_frame, textvariable=frame_skip, width=2, bg="white")
+# frame skip
+e = Entry(options_frame, textvariable=frame_skip, width=2, bg="white")
 e.delete(0); e.insert(0, "1"); e.grid(row=3, sticky="w")
 el = Label(options_frame, text="Frame Skip", height=2, bg="white")
-el.grid(row=3)
-AddToolTip([e, el], "The ratio of frames to skip. E.g. 6 = Process 1 in every 6 frames.")
+el.grid(row=3, padx=20, sticky="w")
+AddToolTip([e, el], "The ratio of frames to skip.\nE.g. At a value of 6 only 1 in every 6 frames will be processed.")
 
-# empty frame for white border on right side
+# fish override threshold
+f = Entry(options_frame, textvariable=fish_threshold, width=2, bg="white")
+f.delete(0); f.insert(0, "20"); f.grid(row=4, sticky="w")
+fl = Label(options_frame, text="Fish Sensitivity", height=2, bg="white")
+fl.grid(row=4, padx=20, sticky="w")
+AddToolTip([f, fl], "The minimum confidence required to override an object as a fish. Lower value = less false negatives, more false positives.\nE.g. At a value of 20 any object with a fish confidence of 20% or higher will be labeled fish regardless if fish is the dominant label.")
+
+# empty frame for white border on right
 Frame(root, width=600, height=20, padx=3, pady=3, bg="white").grid(row=0, column=1, columnspan=4, sticky="nw")
 Frame(root, width=20, height=450, padx=3, pady=3, bg="white").grid(row=0, rowspan=5, column=5, sticky="nw")
 
@@ -183,6 +198,12 @@ image_frame = Frame(root, width=600, height=350, padx=3, pady=3, bg="lightgray",
 image_frame.grid(row=1, column=1, sticky="nw")
 image_frame.pack_propagate(False)
 
+# remove image from image frame
+def wipe_image():
+    for widget in image_frame.winfo_children():
+        print(widget)
+        widget.destroy()
+
 ##### PROGRAM ############################################################################
 
 # configure frame
@@ -192,7 +213,7 @@ program_frame.grid_propagate(False)
 program_frame.columnconfigure(0, weight=1)
 
 # configure grid
-for i in range(0, 4):
+for i in range(0, 10):
     program_frame.rowconfigure(i, weight=1)
 
 # open single video button
@@ -203,15 +224,14 @@ open_file_button.grid(row=1)
 open_folder_button = Button(program_frame, text="Open Folder", width=20, command=lambda: open_dir(root))
 open_folder_button.grid(row=2)
 
-# progress bar and back button (not placed by default)
+# video info label, progress bar, and back button (not placed by default)
+info_label   = Label(program_frame, text="VIDEO IMFORMATION WILL BE HERE", height=2, bg="white")
 progress_bar = ttk.Progressbar(program_frame, orient=HORIZONTAL, length=450)
 back_button  = Button(program_frame, text = "Quit Processing Video", width=20, command=reset_screen)
 
-# quit program button
-#quit_button = Button(program_frame, text="Quit Program", width=30, command=root.destroy)
-#quit_button.grid(row=2)
-
-
+# labeled display legend
+legend_label = Label(program_frame, text="❔", height=1, bg="white")
+AddToolTip([legend_label], "The color of the box around an object reflects its assigned label:\n White = Unidentified Noise\n Gray = Shark Nose/Camera Edge\n Blue = Fish\n Green = Kelp\n Orange = Sunlight\n Brown = Rock")
 
 # create the window
 root.resizable(False, False) 

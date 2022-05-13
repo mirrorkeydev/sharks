@@ -31,9 +31,9 @@ from skimage.segmentation import flood_fill
 from skimage.util         import crop
 from sklearn.ensemble     import RandomForestClassifier
 from sklearn.neighbors    import _partition_nodes
-from pipeline.blob_extraction      import process_image, extract_blobs, get_blob_features
+from blob_extraction      import process_image, extract_blobs, get_blob_features
 from matplotlib           import pyplot, patches, use
-from matplotlib.backends.backend_tkagg           import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # i don't want matplotlib yelling at me for making too many figures
 use("agg")
@@ -46,19 +46,28 @@ label_colors = ["white", "lightgray", "blue", "green", "cyan", "teal", "orange",
 
 scale       = 0.5   # image scale multiplier
 border_size = 25    # number of pixels
-stop_prog = False   # did the user click the back button?
 
-# https://stackoverflow.com/questions/57122622/how-to-include-json-in-executable-file-by-pyinstaller
+stop_prog   = False # did the user click the back button?
+image_freq  = 40    # how often frames are sent back to ui (one frame is sent every [frame skip * image freq] frames)
+
+# find right path to data
+# modified from: https://stackoverflow.com/questions/57122622/how-to-include-json-in-executable-file-by-pyinstaller
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
-def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
+# main loop
+def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_video, frame_step, fish_threshold):
+
+    # clear the image displayed on image_frame
+    def clear_frame():
+        for w in tk_frame.winfo_children():
+            w.destroy()
 
 ##### FILES & THINGS & WHATEVER ##########################################################
 
-    # load the model
+    # load model
     try:
         rf = load(open(resource_path(model_file), "rb"))
     except:
@@ -71,9 +80,6 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
     except:
         print("Error:", video_file, "is not a readable video file.")
         return
-
-    # skip
-    frame_step = int(skip)
 
     # video time
     print("Reading 1 in every", frame_step, "frames, predicting labels for all found objects, and exporting them as a gif.\nMight take a minute.\n")
@@ -92,44 +98,55 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
         quit()
 
     # setup folder to hold frames
-    dir_name = "Frames"
+    dir_name = f"{video_name}_labeled_frames"
     if enable_images == 1 and not (os.path.exists(dir_name)):
         os.mkdir(dir_name)
 
-
     # capture metadata
-    num_frames = video.count_frames() # can take a few seconds on larger videos, but nice to know how long it will take
+    num_frames = video.count_frames()    # can take a few seconds on larger videos
     metadata   = video.get_meta_data()
     fps        = metadata['fps']
 
-    # Progress bar for loading the video files
+    # progress bar for loading the video files
     progress_bar['maximum'] = num_frames
     progress_bar['value'] = 0
-    tk_frame.update_idletasks()
+
+##### READ VIDEO #########################################################################
 
     # each every i frames
     for frame, image in enumerate(video):
 
-        # wnd process if user went back to the main menu
+        # should this frame be sent to ui? 
+        send_image = frame % (frame_step * image_freq) == 0
+
+        # end process if user went back to the main menu
         if(stop_prog):
+
+            # delete previous image from canvas
+            #clear_frame()
+
             print("Process Terminated")
             return
 
-        # update the progress bar
+        # update the progress bar and info label
+        info_label['text']    = f"Processing {output_file}, frame {frame} of {num_frames} [{(frame/num_frames*100):>2.1f}%]..."
         progress_bar['value'] = frame
         tk_frame.update()
 
-        # list to hold predictions for current frame
-        predictions = [0 for i in range(10)]
-
         if frame % frame_step == 0:
+    
+            # list to hold predictions for current frame
+            predictions = [0 for i in range(10)]
 
             # create png title
-            filename = f"Frames/{frame//frame_step}.png"
+            if enable_images: filename = f"{dir_name}/{frame//frame_step}.png"
 
-            if enable_images:
-                # setup plots
+            # setup figure
+            if enable_images or send_image:
                 fig, ax = pyplot.subplots(1, 1, figsize=(5, 5))
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
+                ax.tick_params(left = False, bottom = False)
 
 ##### IMAGE PROCESSING ###################################################################
 
@@ -152,30 +169,32 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
                 features, _ = get_blob_features(props, processed_images.grayscaled)
                 feature_vector = [val for _, val in features.items()]
 
-                # predict
+                # make prediction
                 class_scores = rf.predict_proba([feature_vector])
                 pred_class   = argmax(class_scores)
                 pred_score   = max(class_scores)
 
-                # overwrite if could be fish (temp measure)
-                # if (class_scores[0][2]) > 0.02:
-                #     pred_class = 2
-                #     pred_score = class_scores[0][2]
+                # fish override
+                if (class_scores[0][2]) > fish_threshold/100:
+                    pred_class = 2
+                    pred_score = class_scores[0][2]
 
                 # record scores
                 predictions[pred_class] += 1
 
-                # add box and title to figure
-                if enable_images == 1:
+##### IMAGE OUTPUT #######################################################################
+
+                # configure figure
+                if enable_images or send_image:
 
                     # set color and title
                     color = label_colors[pred_class]
                     title = label_titles[pred_class]
 
                     # draw box
-                    image_y_size, image_x_size, _ = image.shape
-                    x, y = features["blob_x_coord"]*image_x_size, features["blob_y_coord"]*image_y_size
-                    w, h = features["blob_width"]*image_x_size,   features["blob_height"]*image_y_size
+                    image_y_size, image_x_size, _ = processed_images.rescaled.shape
+                    x, y = features["blob_x_coord"]*image_x_size-border_size, features["blob_y_coord"]*image_y_size-border_size
+                    w, h = features["blob_width"]*image_x_size, features["blob_height"]*image_y_size
                     box = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor=color, facecolor="none")
                     ax.add_patch(box)
 
@@ -183,29 +202,25 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
                     #pyplot.text(x-1, y-8, title, color=color)
                     #pyplot.text(x-1, y-44, str(int(pred_score*100))+"%", color=color)
 
-            # build and write png
-            if enable_images == 1:
-                if bool(flip_video):
-                    image = transform.rotate(image, 180)
-                ax.imshow(image)
-                ax.tick_params(left = False, bottom = False)
-                ax.get_xaxis().set_visible(False)
-                ax.get_yaxis().set_visible(False)
-                fig.tight_layout()
+            # send image to ui
+            if enable_images or send_image:
 
-                ############### send to ui              
-                # creating the Tkinter canvas
-                # containing the Matplotlib figure
-                canvas = FigureCanvasTkAgg(fig, master=tk_frame)  
-                canvas.draw()
-              
-                # placing the canvas on the Tkinter window
+                # delete previous image from canvas
+                clear_frame()
+
+                # place new image on canvas
+                ax.imshow(processed_images.rescaled, cmap="gray")
+                canvas = FigureCanvasTkAgg(fig, master=tk_frame)
                 canvas.get_tk_widget().pack(fill="both")
 
-                pyplot.savefig(filename)  # create png
-                pyplot.close("all")       # close the plot so matplotlib doesn't yell at me
+            # export .png
+            if enable_images:
+                pyplot.savefig(filename, bbox_inches="tight")
 
-##### OUTPUT RESULTS #####################################################################
+            # close the figure so matplotlib doesn't yell at me
+            pyplot.close("all")
+
+##### LOG OUTPUT #########################################################################
 
             # create and write row to output
             row = [str(round(time, 3)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
@@ -215,5 +230,6 @@ def main(tk_frame, progress_bar, video_file, enable_images, flip_video, skip):
             # update timestamp
             time += (frame_step / floor(fps + 0.5))
 
-    # Remove Progress bar upon completion
+    # remove progress bar and image upon completion
     progress_bar.forget()
+    #clear_frame()
