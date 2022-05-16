@@ -5,7 +5,7 @@ from tkinter import filedialog
 from tkinter import ttk
 import time
 import classifier
-from classifier import resource_path
+from classifier import resource_path, show_video_preview
 import re
 import os
 
@@ -37,17 +37,38 @@ enable_images  = IntVar()
 flip_video     = IntVar()
 frame_skip     = IntVar()
 fish_threshold = IntVar()
+sampling_rate  = IntVar()
+
+# keep references to the video(s) to process
+videos_to_process = []
 
 # open the video file and run classifier.py on it
 def open_file(root):
-
-    stop_program = False    # Used to terminate processes if the user wants to "go back" while the program is running
-
+    global videos_to_process
     home = "C:/"        # Default directory for file explorer
     video_file = Path(filedialog.askopenfilename(title="select", initialdir=home))
-    print(video_file)
-    is_file = True
-    if (is_file):
+    videos_to_process = [video_file]
+    print(videos_to_process)
+
+    start_processing_button["state"] = "active"
+    classifier.show_video_preview(image_frame, videos_to_process[0])
+
+def open_dir(root):
+    global videos_to_process
+    # prompt user for directory and create list of files
+    home = "C:/"
+    video_dir  = Path(filedialog.askdirectory(title="select", initialdir=home))
+    video_list = [os.path.join(video_dir, file) for file in os.listdir(video_dir)]
+    videos_to_process = video_list
+    print(videos_to_process)
+
+    start_processing_button["state"] = "active"
+    classifier.show_video_preview(image_frame, videos_to_process[0])
+
+def process_input(root):
+    # There may only be one video to process, or there may be multiple
+    for video_file in videos_to_process:
+        print(video_file)
 
         # place 'program running' widgets
         setup_screen()
@@ -58,42 +79,15 @@ def open_file(root):
         # reset
         reset_screen()
 
-def open_dir(root):
-
-    stop_program = False    # Used to terminate processes if the user wants to "go back" while the program is running
-
-    # prompt user for directory and create list of files
-    home = "C:/"
-    video_dir  = Path(filedialog.askdirectory(title="select", initialdir=home))
-    video_list = [os.path.join(video_dir, file) for file in os.listdir(video_dir)]
-
-    # run program for each file
-    for video_file in video_list:
-        print(video_file)
-
-        is_file = True
-        if (is_file):
-
-            # place 'program running' widgets
-            setup_screen()
-
-            # start the video processing
-            begin(image_frame, progress_bar, video_file)
-
-        # reset
-        reset_screen()
-
-
-def open_settings():
-    window = Toplevel(root)
 
 def setup_screen():
 
     # hide 'open' buttons while program running
     open_file_button.grid_forget()
     open_folder_button.grid_forget()
+    start_processing_button.grid_forget()
 
-    # palce progress widgets
+    # place progress widgets
     info_label.grid(row=1)
     progress_bar.grid(row=2)
     back_button.grid(row=3)
@@ -111,14 +105,15 @@ def reset_screen():
 
     # replace default buttons
     open_file_button.grid(row=1)
-    open_folder_button.grid(row=3)
+    open_folder_button.grid(row=2)
+    start_processing_button.grid(row=3)
 
 def begin(frame, progress_bar, video_file):
 
     wipe_image()
 
     classifier.stop_prog = False
-    classifier.main(image_frame, info_label, progress_bar, video_file, enable_images.get(), flip_video.get(), int(frame_skip.get()), int(fish_threshold.get()))
+    classifier.main(image_frame, info_label, progress_bar, video_file, enable_images.get(), flip_video.get(), int(frame_skip.get()), int(fish_threshold.get()), int(sampling_rate.get()))
 
 # hover tooltips (modified from: https://stackoverflow.com/a/56749167/11319058)
 class ToolTip:
@@ -187,6 +182,13 @@ fl = Label(options_frame, text="Fish Sensitivity", height=2, bg="white")
 fl.grid(row=4, padx=20, sticky="w")
 AddToolTip([f, fl], "The minimum confidence required to override an object as a fish. Lower value = less false negatives, more false positives.\nE.g. At a value of 20 any object with a fish confidence of 20% or higher will be labeled fish regardless if fish is the dominant label.")
 
+# sampling rate
+sr = Entry(options_frame, textvariable=sampling_rate, width=2, bg="white")
+sr.delete(0); sr.insert(0, "20"); sr.grid(row=5, sticky="w")
+srl = Label(options_frame, text="Sampling Rate", height=2, bg="white")
+srl.grid(row=5, padx=20, sticky="w")
+AddToolTip([sr, srl], "The rate at which to sample, measured in Hz.\nE.g. At a value of 20, the output CSV will contain 20 entries per second.")
+
 # empty frame for white border on right
 Frame(root, width=600, height=20, padx=3, pady=3, bg="white").grid(row=0, column=1, columnspan=4, sticky="nw")
 Frame(root, width=20, height=450, padx=3, pady=3, bg="white").grid(row=0, rowspan=5, column=5, sticky="nw")
@@ -224,10 +226,14 @@ open_file_button.grid(row=1)
 open_folder_button = Button(program_frame, text="Open Folder", width=20, command=lambda: open_dir(root))
 open_folder_button.grid(row=2)
 
+# start the processing button
+start_processing_button = Button(program_frame, text="✔️ Start Processing", width=40, state="disabled", command=lambda: process_input(root))
+start_processing_button.grid(row=3)
+
 # video info label, progress bar, and back button (not placed by default)
-info_label   = Label(program_frame, text="VIDEO IMFORMATION WILL BE HERE", height=2, bg="white")
+info_label   = Label(program_frame, text="VIDEO INFORMATION WILL BE HERE", height=2, bg="white")
 progress_bar = ttk.Progressbar(program_frame, orient=HORIZONTAL, length=450)
-back_button  = Button(program_frame, text = "Quit Processing Video", width=20, command=reset_screen)
+back_button  = Button(program_frame, text = "❌ Quit Processing Video", width=20, command=reset_screen)
 
 # labeled display legend
 legend_label = Label(program_frame, text="❔", height=1, bg="white")

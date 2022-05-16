@@ -57,8 +57,37 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
+# displays a one-frame preview of the video selected, so that the 
+# user can adjust the program options as necessary (e.g. flip video)
+def show_video_preview(tk_frame, video_file):
+    try:
+        video = get_reader(video_file, 'ffmpeg')
+    except Exception as e:
+        print("Error with", video_file, ":", e)
+        return
+
+    first_frame = next(iter(video))
+
+    fps = video.get_meta_data()['fps']
+
+    # delete previous image from canvas
+    for w in tk_frame.winfo_children():
+        w.destroy()
+
+    # place new image on canvas
+    fig, ax = pyplot.subplots(1, 1, figsize=(5, 5))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.tick_params(left = False, bottom = False)
+    ax.title.set_text(f"Preview of file(s) selected. {fps} fps.")
+
+    ax.imshow(first_frame)
+
+    canvas = FigureCanvasTkAgg(fig, master=tk_frame)
+    canvas.get_tk_widget().pack(fill="both")
+
 # main loop
-def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_video, frame_step, fish_threshold):
+def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_video, frame_step, fish_threshold, sampling_rate):
 
     # clear the image displayed on image_frame
     def clear_frame():
@@ -92,7 +121,6 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
         csv = open(output_file, 'w', newline="")
         csv_writer = writer(csv) 
         csv_writer.writerow(["Time", "Frame", "Kelp", "Fish", "Seal", "Shark", "", "Video Length (sec)", "FPS", "Width", "Height"])
-        time = 0
     except:
         print("Error: Cannot open", output_file, ".")
         quit()
@@ -113,18 +141,38 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
 
 ##### READ VIDEO #########################################################################
 
-    # each every i frames
-    for frame, image in enumerate(video):
+    sampling_step_rate = 1/sampling_rate
+    video_step_rate = 1/fps
+    effective_video_step_rate = video_step_rate * frame_step
+    csv_time = 0
+    video_time = 0
+
+    while(True):
+        # We work in CSV blocks, and figure out which CSV timestamps correspond to
+        # the next "available" video frame. Here, "barrier" refers to the end of the 
+        # CSV block.
+        times_in_this_block = []
+        next_barrier = csv_time + effective_video_step_rate
+        while csv_time < next_barrier:
+            times_in_this_block.append(csv_time)
+            csv_time += sampling_step_rate
+
+        # All times within the CSV block (calculated above) will receive the same frame
+        # calculation values. This ensures we're not doing the classification step redundantly.
+
+        frame = int(video_time * fps)
+        try:
+            image = video.get_data(frame)
+        except:
+            # This probably happened cause we went out of bounds on the video,
+            # which means we're done.
+            break
 
         # should this frame be sent to ui? 
         send_image = frame % (frame_step * image_freq) == 0
 
         # end process if user went back to the main menu
         if(stop_prog):
-
-            # delete previous image from canvas
-            #clear_frame()
-
             print("Process Terminated")
             return
 
@@ -132,104 +180,103 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
         info_label['text']    = f"Processing {output_file}, frame {frame} of {num_frames} [{(frame/num_frames*100):>2.1f}%]..."
         progress_bar['value'] = frame
         tk_frame.update()
-
-        if frame % frame_step == 0:
     
-            # list to hold predictions for current frame
-            predictions = [0 for i in range(10)]
+        # list to hold predictions for current frame
+        predictions = [0 for i in range(10)]
 
-            # create png title
-            if enable_images: filename = f"{dir_name}/{frame//frame_step}.png"
+        # create png title
+        if enable_images: filename = f"{dir_name}/{frame//frame_step}.png"
 
-            # setup figure
-            if enable_images or send_image:
-                fig, ax = pyplot.subplots(1, 1, figsize=(5, 5))
-                ax.get_xaxis().set_visible(False)
-                ax.get_yaxis().set_visible(False)
-                ax.tick_params(left = False, bottom = False)
+        # setup figure
+        if enable_images or send_image:
+            fig, ax = pyplot.subplots(1, 1, figsize=(5, 5))
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            ax.tick_params(left = False, bottom = False)
 
 ##### IMAGE PROCESSING ###################################################################
 
-            processed_images = process_image(image, bool(flip_video))
+        processed_images = process_image(image, bool(flip_video))
 
 ##### CLASSIFIER TIME ####################################################################
 
-            # label objects in image
-            blobs = extract_blobs(processed_images.final, processed_images.rescaled)
-            not_fish_count, fish_count = 0, 0
+        # label objects in image
+        blobs = extract_blobs(processed_images.final, processed_images.rescaled)
+        not_fish_count, fish_count = 0, 0
 
-            # get properties of each object
-            for blob_num, props in enumerate(blobs):
-                
-                # end process if user went back to the main menu
-                if(stop_prog):
-                    print("Process Terminated")
-                    return
+        # get properties of each object
+        for blob_num, props in enumerate(blobs):
+            
+            # end process if user went back to the main menu
+            if(stop_prog):
+                print("Process Terminated")
+                return
 
-                features, _ = get_blob_features(props, processed_images.grayscaled)
-                feature_vector = [val for _, val in features.items()]
+            features, _ = get_blob_features(props, processed_images.grayscaled)
+            feature_vector = [val for _, val in features.items()]
 
-                # make prediction
-                class_scores = rf.predict_proba([feature_vector])
-                pred_class   = argmax(class_scores)
-                pred_score   = max(class_scores)
+            # make prediction
+            class_scores = rf.predict_proba([feature_vector])
+            pred_class   = argmax(class_scores)
+            pred_score   = max(class_scores)
 
-                # fish override
-                if (class_scores[0][2]) > fish_threshold/100:
-                    pred_class = 2
-                    pred_score = class_scores[0][2]
+            # fish override
+            if (class_scores[0][2]) > fish_threshold/100:
+                pred_class = 2
+                pred_score = class_scores[0][2]
 
-                # record scores
-                predictions[pred_class] += 1
+            # record scores
+            predictions[pred_class] += 1
 
 ##### IMAGE OUTPUT #######################################################################
 
-                # configure figure
-                if enable_images or send_image:
-
-                    # set color and title
-                    color = label_colors[pred_class]
-                    title = label_titles[pred_class]
-
-                    # draw box
-                    image_y_size, image_x_size, _ = processed_images.rescaled.shape
-                    x, y = features["blob_x_coord"]*image_x_size-border_size, features["blob_y_coord"]*image_y_size-border_size
-                    w, h = features["blob_width"]*image_x_size, features["blob_height"]*image_y_size
-                    box = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor=color, facecolor="none")
-                    ax.add_patch(box)
-
-                    # add text
-                    #pyplot.text(x-1, y-8, title, color=color)
-                    #pyplot.text(x-1, y-44, str(int(pred_score*100))+"%", color=color)
-
-            # send image to ui
+            # configure figure
             if enable_images or send_image:
 
-                # delete previous image from canvas
-                clear_frame()
+                # set color and title
+                color = label_colors[pred_class]
+                title = label_titles[pred_class]
 
-                # place new image on canvas
-                ax.imshow(processed_images.rescaled, cmap="gray")
-                canvas = FigureCanvasTkAgg(fig, master=tk_frame)
-                canvas.get_tk_widget().pack(fill="both")
+                # draw box
+                image_y_size, image_x_size, _ = processed_images.rescaled.shape
+                x, y = features["blob_x_coord"]*image_x_size-border_size, features["blob_y_coord"]*image_y_size-border_size
+                w, h = features["blob_width"]*image_x_size, features["blob_height"]*image_y_size
+                box = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor=color, facecolor="none")
+                ax.add_patch(box)
 
-            # export .png
-            if enable_images:
-                pyplot.savefig(filename, bbox_inches="tight")
+        # send image to ui
+        if enable_images or send_image:
 
-            # close the figure so matplotlib doesn't yell at me
-            pyplot.close("all")
+            # delete previous image from canvas
+            clear_frame()
+
+            # place new image on canvas
+            ax.imshow(processed_images.rescaled, cmap="gray")
+            canvas = FigureCanvasTkAgg(fig, master=tk_frame)
+            canvas.get_tk_widget().pack(fill="both")
+
+        # export .png
+        if enable_images:
+            pyplot.savefig(filename, bbox_inches="tight")
+
+        # close the figure so matplotlib doesn't yell at me
+        pyplot.close("all")
 
 ##### LOG OUTPUT #########################################################################
 
+        for csv_time in times_in_this_block:
             # create and write row to output
-            row = [str(round(time, 3)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
-            if (frame / frame_step == 0): row.extend(["", metadata['duration'], metadata['fps'], metadata['source_size'][0], metadata['source_size'][1]])
+            row = [str(round(csv_time, 3)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
+            if (csv_time == 0): row.extend(["", metadata['duration'], metadata['fps'], metadata['source_size'][0], metadata['source_size'][1]])
             csv_writer.writerow(row)
 
-            # update timestamp
-            time += (frame_step / floor(fps + 0.5))
+        # if our next barrier is past the end of the video, then we're done.
+        if next_barrier > (num_frames / fps):
+            break
+
+        # update timestamp
+        video_time = next_barrier
+        csv_time += sampling_step_rate
 
     # remove progress bar and image upon completion
     progress_bar.forget()
-    #clear_frame()
