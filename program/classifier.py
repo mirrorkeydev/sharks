@@ -120,7 +120,7 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
     try:
         csv = open(output_file, 'w', newline="")
         csv_writer = writer(csv) 
-        csv_writer.writerow(["Time", "Frame", "Kelp", "Fish", "Seal", "Shark", "", "Video Length (sec)", "FPS", "Width", "Height"])
+        csv_writer.writerow(["Time", "Frame", "Kelp", "Kelp_Binary", "Fish", "Fish_Binary", "Rocks_Binary", "", "Video Length (sec)", "FPS", "Width", "Height"])
     except:
         print("Error: Cannot open", output_file, ".")
         quit()
@@ -266,7 +266,7 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
 
         for csv_time in times_in_this_block:
             # create and write row to output
-            row = [str(round(csv_time, 3)), frame, predictions[3], predictions[2], predictions[4], predictions[5]]
+            row = [str(round(csv_time, 3)), frame, predictions[3], 1 if predictions[3] > 0 else 0, predictions[2], 1 if predictions[2] > 0 else 0, 1 if predictions[7] > 0 else 0]
             if (csv_time == 0): row.extend(["", metadata['duration'], metadata['fps'], metadata['source_size'][0], metadata['source_size'][1]])
             csv_writer.writerow(row)
 
