@@ -39,7 +39,7 @@ frame_skip     = IntVar()
 fish_threshold = IntVar()
 sampling_rate  = IntVar()
 
-output_path = "C:/"
+output_path = Path(".")
 
 # keep references to the video(s) to process
 videos_to_process = []
