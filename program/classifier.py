@@ -87,7 +87,7 @@ def show_video_preview(tk_frame, video_file):
     canvas.get_tk_widget().pack(fill="both")
 
 # main loop
-def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_video, frame_step, fish_threshold, sampling_rate):
+def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_video, frame_step, fish_threshold, sampling_rate, output_path):
 
     # clear the image displayed on image_frame
     def clear_frame():
@@ -116,7 +116,7 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
     # create/write to output file
     _, v = os.path.split(video_file)
     video_name, _ = v.rsplit('.', 1)
-    output_file = f"{video_name}.csv"
+    output_file = output_path.joinpath(f"{video_name}.csv")
     try:
         csv = open(output_file, 'w', newline="")
         csv_writer = writer(csv) 
@@ -126,7 +126,7 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
         quit()
 
     # setup folder to hold frames
-    dir_name = f"{video_name}_labeled_frames"
+    dir_name = output_file = output_path.joinpath(f"{video_name}_labeled_frames")
     if enable_images == 1 and not (os.path.exists(dir_name)):
         os.mkdir(dir_name)
 
@@ -177,7 +177,8 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
             return
 
         # update the progress bar and info label
-        info_label['text']    = f"Processing {output_file}, frame {frame} of {num_frames} [{(frame/num_frames*100):>2.1f}%]..."
+        output_file_label = "..." + str(output_file)[-47:] if len(str(output_file)) > 50 else str(output_file)
+        info_label['text']    = f"Processing {output_file_label}, frame {frame} of {num_frames} [{(frame/num_frames*100):>2.1f}%]"
         progress_bar['value'] = frame
         tk_frame.update()
     

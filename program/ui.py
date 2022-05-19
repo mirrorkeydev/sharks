@@ -39,6 +39,8 @@ frame_skip     = IntVar()
 fish_threshold = IntVar()
 sampling_rate  = IntVar()
 
+output_path = "C:/"
+
 # keep references to the video(s) to process
 videos_to_process = []
 
@@ -79,6 +81,14 @@ def process_input(root):
         # reset
         reset_screen()
 
+def select_dir(root):
+    global output_path
+    # prompt user for directory
+    home = "C:/"
+    output_path = Path(filedialog.askdirectory(title="select", initialdir=home))
+    stem = output_path.stem[:16] + "..." if len(output_path.stem) > 19 else output_path.stem
+    of["text"] = stem if stem != "" else str(output_path)
+    print(output_path)
 
 def setup_screen():
 
@@ -113,7 +123,7 @@ def begin(frame, progress_bar, video_file):
     wipe_image()
 
     classifier.stop_prog = False
-    classifier.main(image_frame, info_label, progress_bar, video_file, enable_images.get(), flip_video.get(), int(frame_skip.get()), int(fish_threshold.get()), int(sampling_rate.get()))
+    classifier.main(image_frame, info_label, progress_bar, video_file, enable_images.get(), flip_video.get(), int(frame_skip.get()), int(fish_threshold.get()), int(sampling_rate.get()), output_path)
 
 # hover tooltips (modified from: https://stackoverflow.com/a/56749167/11319058)
 class ToolTip:
@@ -188,6 +198,10 @@ sr.delete(0); sr.insert(0, "20"); sr.grid(row=5, sticky="w")
 srl = Label(options_frame, text="Sampling Rate", height=2, bg="white")
 srl.grid(row=5, padx=20, sticky="w")
 AddToolTip([sr, srl], "The rate at which to sample, measured in Hz.\nE.g. At a value of 20, the output CSV will contain 20 entries per second.")
+
+of = Button(options_frame, text="Output Folder", width=14, command=lambda: select_dir(root))
+of.grid(row=6, sticky="w")
+AddToolTip([of], "Select the folder to output CSVs and images to.\nIf not selected, it will output in the folder that the program is in.")
 
 # empty frame for white border on right
 Frame(root, width=600, height=20, padx=3, pady=3, bg="white").grid(row=0, column=1, columnspan=4, sticky="nw")
