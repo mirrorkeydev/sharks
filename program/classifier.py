@@ -146,21 +146,33 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
     effective_video_step_rate = video_step_rate * frame_step
     csv_time = 0
     video_time = 0
+    print("sampling_step_rate", sampling_step_rate)
+    print("video_step_rate", video_step_rate)
+    print("effective_video_step_rate", effective_video_step_rate)
+    times_in_this_block = []
 
     while(True):
         # We work in CSV blocks, and figure out which CSV timestamps correspond to
         # the next "available" video frame. Here, "barrier" refers to the end of the 
         # CSV block.
+        if len(times_in_this_block) != 0:
+            last_csv_time = times_in_this_block[-1]
+        else:
+            last_csv_time = csv_time
+
         times_in_this_block = []
-        next_barrier = csv_time + effective_video_step_rate
+        if sampling_rate < fps:
+            next_barrier = csv_time + effective_video_step_rate
+        else:
+            next_barrier = last_csv_time + effective_video_step_rate
+
         while csv_time < next_barrier:
             times_in_this_block.append(csv_time)
             csv_time += sampling_step_rate
 
         # All times within the CSV block (calculated above) will receive the same frame
         # calculation values. This ensures we're not doing the classification step redundantly.
-
-        frame = int(video_time * fps)
+        frame = round(video_time * fps)
         try:
             image = video.get_data(frame)
         except:
@@ -277,7 +289,8 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
 
         # update timestamp
         video_time = next_barrier
-        csv_time += sampling_step_rate
+        csv_time = times_in_this_block[-1] + sampling_step_rate
+
 
     # remove progress bar and image upon completion
     progress_bar.forget()
