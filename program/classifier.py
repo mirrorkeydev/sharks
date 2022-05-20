@@ -146,9 +146,6 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
     effective_video_step_rate = video_step_rate * frame_step
     csv_time = 0
     video_time = 0
-    print("sampling_step_rate", sampling_step_rate)
-    print("video_step_rate", video_step_rate)
-    print("effective_video_step_rate", effective_video_step_rate)
     times_in_this_block = []
 
     while(True):
@@ -161,7 +158,7 @@ def main(tk_frame, info_label, progress_bar, video_file, enable_images, flip_vid
             last_csv_time = csv_time
 
         times_in_this_block = []
-        if sampling_rate < fps:
+        if sampling_rate <= fps:
             next_barrier = csv_time + effective_video_step_rate
         else:
             next_barrier = last_csv_time + effective_video_step_rate
