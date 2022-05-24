@@ -183,8 +183,6 @@ deployments = [
     "csv_dir": dir_root.joinpath(Path(r'Scored_video_and_data/CA 2017_INDEXED/CSV Files/TOM_CC0704_20171102')),
     "vid_dir": dir_root.joinpath(Path(r'Scored_video_and_data/CA 2017_INDEXED/TOM_CC0704_20171102')),
     # This one has a unique video file name pattern that warranted its own regex.
-    # TODO: maybe talk to Dr. Chapple about standardizing these formats so I don't have to
-    # write all these regexes. We could script the change so it wouldn't take too long.
     "regex_pattern":  { **regex_a, "vid": r'.+-(\d+)' },
     "upsidedown": False,
   },
